@@ -1,0 +1,5 @@
+build
+lib
+*.swp
+libOTe_libs
+*.sh

@@ -1,0 +1,3 @@
+[submodule "third_party/libOTe"]
+	path = third_party/libOTe
+	url = https://github.com/osu-crypto/libOTe.git
