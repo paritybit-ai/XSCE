@@ -1,5 +1,5 @@
 
-### [英文版](./README.md) 
+### [English](./README.md) 
 
 # XSCE
 
