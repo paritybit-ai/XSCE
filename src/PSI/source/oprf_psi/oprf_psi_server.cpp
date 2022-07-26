@@ -86,7 +86,7 @@ namespace oprf_psi
                                u64 sender_size, u64 bucket1, u64 w,
                                u64 location_in_bytes, u64 h1_length_in_bytes,
                                const std::vector<block> &send_set,
-                               std::vector<std::vector<u8>> &trans_locations)
+                               std::vector<std::vector<u8> > &trans_locations)
     {
         common_prng.get((u8 *)&common_key, sizeof(block));
         common_aes.setKey(common_key);
@@ -114,7 +114,7 @@ namespace oprf_psi
     void ExtendOTsAndComputeMatrixC(u64 height_in_bytes, u64 w, u64 w_left,
                                     const std::vector<block> &ot_messages,
                                     const BitVector &choices, Channel &ch,
-                                    std::vector<std::vector<u8>> &matrixC)
+                                    std::vector<std::vector<u8> > &matrixC)
     {
         std::vector<u8> recv_matrix(height_in_bytes);
 
@@ -135,9 +135,9 @@ namespace oprf_psi
         }
     }
 
-    void ComputeHashInputs(u64 sender_size, u64 w, const std::vector<std::vector<u8>> &trans_locations,
-                           u64 location_in_bytes, u64 shift, u64 w_left, const std::vector<std::vector<u8>> &matrixC,
-                           std::vector<std::vector<u8>> &trans_hash_inputs)
+    void ComputeHashInputs(u64 sender_size, u64 w, const std::vector<std::vector<u8> > &trans_locations,
+                           u64 location_in_bytes, u64 shift, u64 w_left, const std::vector<std::vector<u8> > &matrixC,
+                           std::vector<std::vector<u8> > &trans_hash_inputs)
     {
         for (u64 i = 0; i < w; ++i)
         {
@@ -150,10 +150,10 @@ namespace oprf_psi
         }
     }
 
-    void OprfPsiServer::ComputeHashOutputs(u64 width_in_bytes, u64 sender_size, Timer &timer, const std::vector<std::vector<u8>> &trans_hash_inputs, u64 hash_length_in_bytes, Channel &ch)
+    void OprfPsiServer::ComputeHashOutputs(u64 width_in_bytes, u64 sender_size, Timer &timer, const std::vector<std::vector<u8> > &trans_hash_inputs, u64 hash_length_in_bytes, Channel &ch)
     {
         RandomOracle H(hash_length_in_bytes);
-        std::vector<std::vector<u8>> hash_inputs(bucket2, std::vector<u8>(width_in_bytes));
+        std::vector<std::vector<u8> > hash_inputs(bucket2, std::vector<u8>(width_in_bytes));
 
         for (u64 low = 0; low < sender_size; low += bucket2)
         {
@@ -180,7 +180,7 @@ namespace oprf_psi
             {
                 H.Reset();
                 H.Update(hash_inputs[j - low].data(), width_in_bytes);
-                SaveOprfValues((char*)hash_inputs[j - low].data(), width_in_bytes);
+                SaveOprfValues((char *)hash_inputs[j - low].data(), width_in_bytes);
 
                 H.Final(hash_output);
 
@@ -234,9 +234,9 @@ namespace oprf_psi
 
         LOG_INFO("Sender set transformed");
         timer.setTimePoint("Sender set transformed");
-        std::vector<std::vector<u8>> matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
-        std::vector<std::vector<u8>> trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
-        std::vector<std::vector<u8>> trans_locations(width_bucket1, std::vector<u8>(sender_size * location_in_bytes + sizeof(u32)));
+        std::vector<std::vector<u8> > matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
+        std::vector<std::vector<u8> > trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
+        std::vector<std::vector<u8> > trans_locations(width_bucket1, std::vector<u8>(sender_size * location_in_bytes + sizeof(u32)));
         for (uint32_t w_left = 0; w_left < width; w_left += width_bucket1)
         {
             auto wRight = w_left + width_bucket1 < width ? w_left + width_bucket1 : width;
@@ -263,7 +263,8 @@ namespace oprf_psi
         ComputeHashOutputs(width_in_bytes, sender_size,
                            timer, trans_hash_inputs, hashLengthInBytes, ch);
 
-        LOG_INFO("\n" << timer);
+        LOG_INFO("\n"
+                 << timer);
     }
 
     int64_t OprfPsiServer::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles)
@@ -283,6 +284,7 @@ namespace oprf_psi
         LOG_INFO("ipSender=" << ip_);
         LOG_INFO("dataByteLen=" << dataByteLen);
         LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
+        LOG_INFO("server internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
         LOG_INFO("chName=" << chName);
         LOG_INFO("oprfSenderSize=" << senderSize);
 
@@ -293,7 +295,8 @@ namespace oprf_psi
         Channel ch = ep.addChannel();
 
         std::vector<block> senderSet(senderSize);
-        PRNG prng(oc::toBlock(inertalSeed));
+        //prng should use 128 bit seed.
+        PRNG prng(oc::toBlock(inertalSeed, inertalSeed1));
         for (uint64_t i = 0; i < senderSize; ++i)
         {
             uint64_t *dataBase1;

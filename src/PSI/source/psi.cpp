@@ -57,7 +57,7 @@ namespace xscePsiAlg
         return rlt;
     }
 
-    int64_t oprfPsiAlgClient(OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<util::block>& oprf_values)
+    int64_t oprfPsiAlgClient(OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<util::block> &oprf_values)
     {
         int64_t rlt = 0;
         LOG_INFO("oprf psi alg client mode begin...");
@@ -91,6 +91,9 @@ namespace xscePsiAlg
                 LOG_INFO("begin run oprf sender..");
 
                 oprf_psi::OprfPsiServer psi_server(ip, port);
+                //to init common seed & internal seed.
+                psi_server.ParseOpt(*optAlg);
+
                 psi_server.SetOprfValuesFlag(get_oprf_values);
                 psi_server.OprfPsiAlg((uint8_t *)hashBuf, senderSize, receiverSize);
                 oprf_values = psi_server.GetOprfValues();
@@ -100,6 +103,9 @@ namespace xscePsiAlg
             {
                 LOG_INFO("begin run oprf receiver..");
                 oprf_psi::OprfPsiClient psi_client(ip, port);
+                //to init common seed & internal seed.
+                psi_client.ParseOpt(*optAlg);
+
                 psi_client.SetOprfValuesFlag(get_oprf_values);
                 psi_client.OprfPsiAlg((uint8_t *)hashBuf, receiverSize, senderSize);
                 oprf_values = psi_client.GetOprfValues();
@@ -115,7 +121,7 @@ namespace xscePsiAlg
         return rlt;
     }
 
-    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<util::block>& oprf_values, int roleSwitch)
+    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<util::block> &oprf_values, int roleSwitch)
     {
         int64_t rlt = -1;
         LOG_INFO("hashbufPsiAlgClient top level ...");
@@ -242,7 +248,7 @@ namespace xscePsiAlg
         return hashbufPsiAlgClient(hashBufInput, psiLen, rltVec, optAlg, srvIndexVec, false, tmp, roleSwitch);
     }
 
-    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, std::vector<util::block>& oprf_values, int roleSwitch)
+    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, std::vector<util::block> &oprf_values, int roleSwitch)
     {
         return hashbufPsiAlgClient(hashBufInput, psiLen, rltVec, optAlg, srvIndexVec, true, oprf_values, roleSwitch);
     }

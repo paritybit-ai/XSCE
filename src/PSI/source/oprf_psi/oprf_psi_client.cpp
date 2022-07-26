@@ -374,9 +374,11 @@ namespace oprf_psi
         LOG_INFO("chName=" << chName);
         LOG_INFO("dataByteLen=" << dataByteLen);
         LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
+        LOG_INFO("client internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
 
         std::vector<block> receiverSet(receiverSize);
-        PRNG prng(oc::toBlock(inertalSeed));
+        //prng should use 128 bit seed.
+        PRNG prng(oc::toBlock(inertalSeed,inertalSeed1));
 
         for (uint64_t i = 0; i < receiverSize; ++i)
         {
