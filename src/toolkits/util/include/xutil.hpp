@@ -46,6 +46,7 @@
 
 #include "xlog.h"
 
+namespace xsce_ose {
 // #define DEBUG
 //define delay micro
 #define SleepMsec(x) usleep((x) << 10)
@@ -193,5 +194,6 @@ std::string findBufStrNolf(unsigned char *buf, std::size_t len, std::string &del
 
 uint64_t getFileLineHeadShm(std::string fn, std::vector<int64_t> &vec, int64_t fsize, int64_t headLine = 0);
 void shareMemFileRead(std::string fn, int64_t base, int64_t offset, int64_t col, int64_t showLen);
+} // namespace xsce_ose
 
 #endif

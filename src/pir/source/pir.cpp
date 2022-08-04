@@ -34,6 +34,7 @@ namespace xscePirAlg
     using namespace std;
     using namespace oc;
     using namespace util;
+    using namespace xsce_ose;
 
     int64_t pir2PartyAlgTerminalBatch(OptAlg *optAlg)
     {

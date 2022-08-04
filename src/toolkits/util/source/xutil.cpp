@@ -32,6 +32,7 @@
 #include <fstream>
 #include <string>
 
+namespace xsce_ose {
 void showBlk(int a, int b)
 {
     for (int i = 0; i < a; i++)
@@ -1481,3 +1482,4 @@ uint64_t findBufChar(unsigned char *buf, std::size_t len, unsigned char ch, int6
 
     return rlt;
 }
+} // namespace xsce_ose

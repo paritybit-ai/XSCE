@@ -44,8 +44,11 @@ namespace oprf_psi
     {
         IknpOtExtReceiver ot_ext_receiver;
         ot_ext_receiver.genBaseOts(prng, ch);
+
         prng.get(choices.data(), choices.sizeBytes());
+        
         ot_ext_receiver.receive(choices, ot_messages, prng, ch);
+        
 
         LOG_INFO("..Sender base OT finished");
     }
@@ -194,6 +197,16 @@ namespace oprf_psi
         timer.setTimePoint("Sender hash outputs computed and sent");
     }
 
+    //oprf psi alg note according to figure 3 in oprf paper << Private Set Intersection in the Internet Setting From Lightweight Oblivious PRF>>   .Modified by wumingzi. 2022:08:01,Monday,21:47:07.
+    /*
+    1）D/A/B are all matrices of the same row/column: w means width and h means height.
+    2）P1 is server/sender, P2 is client/reciever. P1 holds elements x,P2 holds elements y,
+    3）two hash functions: H1 and H2: H1 converts inputs with any length to output with l1 bits,
+        H2 converts inputs with w bits to output  with l2 bits,
+    4) PRF function F: converts the output of H1 with l1 bits to  a w-dimension vector v(v[1],v[2],...v[w]) ,v[i]'s value is from 0 to h-1
+    */
+    //   .Modification over by wumingzi. 2022:08:01,Monday,21:47:11.
+
     void OprfPsiServer::Run(PRNG &prng, Channel &ch, block commonSeed,
                             const u64 &sender_size, const u64 &receiverSize,
                             const std::vector<block> &sender_set)
@@ -201,6 +214,9 @@ namespace oprf_psi
         Timer timer;
         timer.setTimePoint("Sender start");
 
+        //logHeight means the number of bits to hold the value of h
+        //location_in_bytes means the location of row in matrix(A/D/B)
+        //width_bucket1 means the number of rows in a block(128 bits)
         auto height_in_bytes = (height + 7) / 8;
         auto width_in_bytes = (width + 7) / 8;
         auto location_in_bytes = (logHeight + 7) / 8;
@@ -210,6 +226,13 @@ namespace oprf_psi
 
         LOG_INFO("in snd run: height_in_bytes=" << height_in_bytes << ",width_in_bytes=" << width_in_bytes << ",location_in_bytes=" << location_in_bytes);
         LOG_INFO("sender_size_in_bytes=" << sender_size_in_bytes << ",width_bucket1=" << width_bucket1);
+
+        //  .Modified by wumingzi. 2022:08:01,Monday,22:14:14.
+        /*
+         server uses ot to get seed to generate matrix C,this is different with paper which transfer an entire column in each OT
+         here only transfer a block in each OT and then use the block as seed to generate a column with h bits.
+         w=width is the column size of matrxA/B/D. so here are width OT transfers. server is chooser,client is sender.
+        */
 
         //////////////////// Base OTs /////////////////////////////////
         std::vector<block> ot_messages(width);
@@ -228,12 +251,43 @@ namespace oprf_psi
         common_prng.get((u8 *)&common_key, sizeof(block));
         common_aes.setKey(common_key);
 
+        // calculate the key of PRF function F for each element  .Modified by wumingzi. 2022:08:01,Monday,22:22:16.
         //////////// Compute send_set
         std::vector<block> send_set(sender_size);
         ComputeSendSet(hash1LengthInBytes, sender_size, common_aes, sender_set, send_set);
 
         LOG_INFO("Sender set transformed");
         timer.setTimePoint("Sender set transformed");
+
+        // matrixA/B/C/D are all tranposed to store in memory  .Modified by wumingzi. 2022:08:01,Monday,22:24:09.
+        /*
+        as an example of matrix D with h rows and w columns.
+        original matrix is as below:(h rows, w column)
+            d[1][1] d[1][2] ... d[1][w]
+            d[2][1] d[2][2] ... d[2][w]
+
+            d[3][1] d[3][2] ... d[3][w]
+            d[4][1] d[4][2] ... d[4][w]
+        
+            d[h-1][1] d[h-1][2] ... d[h-1][w]
+            d[h][1] d[h][2] ... d[h][w]
+
+        transposed matrix is as below: (w rows ,h columns)
+            d[1][1] d[2][1] ... d[h][1]
+            d[1][2] d[2][2] ... d[h][2]
+
+            d[1][3] d[2][3] ... d[h][3]
+            d[1][4] d[2][4] ... d[h][4]
+        
+            d[1][w-1] d[2][h-1] ... d[h][w-1]
+            d[1][w] d[2][h] ... d[h][w]
+
+        */
+
+        //trans_locations means the value of v[i], which location which row in matrixD to be set to 0 according to (c) of step 1
+        //for transposed matrix, a block holds width_bucket1 rows, so the loop time = width/width_bucket1
+        //matrx_delta is D
+
         std::vector<std::vector<u8> > matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
         std::vector<std::vector<u8> > trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
         std::vector<std::vector<u8> > trans_locations(width_bucket1, std::vector<u8>(sender_size * location_in_bytes + sizeof(u32)));
@@ -243,14 +297,18 @@ namespace oprf_psi
             auto w = wRight - w_left;
 
             //////////// Compute random locations (transposed) ////////////////
+            //send_set holds the the key of PRF fucntion F for calculating value v of each element of sender
+            //for each element x,calculate the value v[i] and store them in trans_locations
             ComputRandomLocations(common_prng, common_aes, common_key, sender_size, bucket1,
                                   w, location_in_bytes, hash1LengthInBytes, send_set,
                                   trans_locations);
 
             //////////////// Extend OTs and compute matrix C ///////////////////
+            //(a) of step 2 in paper,refer to note for ComputeMatrixAAndSentMatrix function of client party.
             ExtendOTsAndComputeMatrixC(height_in_bytes, w, w_left, ot_messages, choices, ch, matrixC);
 
             ///////////////// Compute hash inputs (transposed) /////////////////////
+            // for each element x, calculate the value of C1[v[1]],C2[v[2]]....,Cw[v[w]] and store them in trans_hash_inputs
             ComputeHashInputs(sender_size, w, trans_locations, location_in_bytes, shift,
                               w_left, matrixC, trans_hash_inputs);
         }
@@ -259,7 +317,8 @@ namespace oprf_psi
         timer.setTimePoint("Sender transposed hash input computed");
 
         /////////////////// Compute hash outputs ///////////////////////////
-
+        //for each element x,  use H2 to calculate oprf value ,H2(C1[v[1]],C2[v[2]]....,Cw[v[w]])
+        //send all oprv value of x to client.
         ComputeHashOutputs(width_in_bytes, sender_size,
                            timer, trans_hash_inputs, hashLengthInBytes, ch);
 
@@ -287,6 +346,8 @@ namespace oprf_psi
         LOG_INFO("server internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
         LOG_INFO("chName=" << chName);
         LOG_INFO("oprfSenderSize=" << senderSize);
+
+        LOG_INFO("senderSize=" << std::dec << senderSize << ",receiverSize=" << receiverSize);
 
         IOService ios;
         Endpoint ep(ios, ip_, EpMode::Server, chName);
