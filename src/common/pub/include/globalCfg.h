@@ -24,8 +24,7 @@
  * 
  */
 
-#ifndef XSCE_GLOBALCFG_H
-#define XSCE_GLOBALCFG_H
+#pragma once
 
 #include <sys/timeb.h>
 #include <unistd.h>
@@ -48,6 +47,7 @@
 #include <condition_variable>
 #include <thread>
 
+namespace xsce_ose {
 // Define general function error codde....  Modified by wumingzi on 2021/4/26 5:17 pm.
 #define SUCCESS_RLT 0
 #define ERROR_RLT -1
@@ -408,4 +408,4 @@ typedef struct _LogSaveOpt
     int64_t logLevel = 0;
 } LogSaveOpt;
 // modfication over.  Modified by .pan on 2021/5/12 3:24 pm.
-#endif // XSCE_GLOBALCFG_H
+} // namespace xsce_ose

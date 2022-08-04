@@ -30,6 +30,7 @@
 
 namespace xscePsiAlg
 {
+    using OptAlg = xsce_ose::OptAlg;
     int64_t hashbufPsiAlgClient(uint64_t *hashBufInput,
                                 int64_t psiLen,
                                 std::vector<uint64_t> &rltVec,

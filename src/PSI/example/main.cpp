@@ -46,6 +46,7 @@
 
 using namespace std;
 using namespace util;
+using namespace xsce_ose;
 
 const block commonSeed = oc::toBlock(123456);
 

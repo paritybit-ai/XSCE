@@ -66,6 +66,7 @@
 
 namespace xscePirAlg
 {
+    using OptAlg = xsce_ose::OptAlg;
     using namespace osuCrypto;
     //here for  solo pir project which will be open sourced.
 

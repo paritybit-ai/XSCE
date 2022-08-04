@@ -43,6 +43,7 @@
 
 using namespace std;
 using namespace xscePirAlg;
+using namespace xsce_ose;
 
 const block commonSeed = oc::toBlock(123456);
 

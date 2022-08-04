@@ -66,6 +66,7 @@
 
 namespace util
 {
+    using OptAlg = xsce_ose::OptAlg;
     //here for  solo pir project which will be open sourced.
     class TimeUtils
     {

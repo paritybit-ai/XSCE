@@ -38,6 +38,7 @@ namespace util
 {
     using namespace std;
     using namespace oc;
+    using namespace xsce_ose;
 
     int64_t copyAlgOpt(OptAlg *optDst, OptAlg *optSrc)
     {

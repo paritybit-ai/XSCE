@@ -35,6 +35,7 @@
 
 namespace oprf_psi
 {
+    using OptAlg = xsce_ose::OptAlg;
     class OprfPsi
     {
     public:
