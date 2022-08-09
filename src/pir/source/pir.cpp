@@ -539,7 +539,7 @@ namespace xscePirAlg
 
         //. run psi to get server data index which meets client query id
         // for now,only use oprf psi alg  .Modified by wumingzi/wumingzi. 2022:04:21,Thursday,21:35:12.
-        std::vector<util::block> oprf_values;
+        std::vector<block> oprf_values;
         {
             LOG_INFO("use oprf psi for pir alg.");
             LOG_INFO("begin to show hash buf. before psi...");
@@ -1735,7 +1735,7 @@ namespace xscePirAlg
             if (i < max_show_cnt)
             {
                 LOG_INFO("index:" << index_cli);
-                util::block b(*(key + index_cli * key_len), *(key + index_cli * key_len + 1));
+                block b(*(key + index_cli * key_len), *(key + index_cli * key_len + 1));
                 LOG_INFO("key:" << b);
 
                 uint8_t *charBuf = (uint8_t *)(dst + i * msg_aes_len);

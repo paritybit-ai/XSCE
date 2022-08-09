@@ -34,7 +34,7 @@
 
 namespace oprf_psi
 {
-    using namespace util;
+    using namespace xsce_ose;
 
     /*
      * output: ot_messages
@@ -455,8 +455,9 @@ namespace oprf_psi
         uint64_t *dataBase1;
         uint64_t *dataBase2;
         uint8_t *dataBuf = hashBuf;
+        LOG_INFO("Client ip:" << ip_ << ", port:" << port_);
         IOService ios;
-        Endpoint ep(ios, ip_, EpMode::Client, chName);
+        Endpoint ep(ios, ip_, port_, EpMode::Client, chName);
         Channel ch = ep.addChannel();
         LOG_INFO("chName=" << chName);
         LOG_INFO("dataByteLen=" << dataByteLen);

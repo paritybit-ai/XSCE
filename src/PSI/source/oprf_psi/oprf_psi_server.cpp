@@ -34,7 +34,7 @@
 
 namespace oprf_psi
 {
-    using namespace util;
+    using namespace xsce_ose;
 
     /*
      * output: choices, ot_messages
@@ -340,7 +340,7 @@ namespace oprf_psi
         }
         int dataByteLen = hashLen / (sizeof(uint8_t) * 8);
 
-        LOG_INFO("ipSender=" << ip_);
+        LOG_INFO("Server ip:" << ip_ << ", port:" << port_);
         LOG_INFO("dataByteLen=" << dataByteLen);
         LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
         LOG_INFO("server internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
@@ -350,7 +350,7 @@ namespace oprf_psi
         LOG_INFO("senderSize=" << std::dec << senderSize << ",receiverSize=" << receiverSize);
 
         IOService ios;
-        Endpoint ep(ios, ip_, EpMode::Server, chName);
+        Endpoint ep(ios, ip_, port_, EpMode::Server, chName);
 
         LOG_INFO("before addChannel psi ");
         Channel ch = ep.addChannel();

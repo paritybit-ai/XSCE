@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-#include "oprf_psi/oprf_psi.h"
+#include "oprf_psi.h"
 #include "common/pub/include/Defines.h"
 
 namespace oprf_psi
@@ -40,9 +40,9 @@ namespace oprf_psi
         int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles);
 
     private:
-        void Run(util::PRNG &prng, util::Channel &ch, util::block commonSeed, const util::u64 &sender_size,
-                 const util::u64 &receiverSize, const std::vector<util::block> &sender_set);
+        void Run(xsce_ose::PRNG &prng, xsce_ose::Channel &ch, xsce_ose::block commonSeed, const xsce_ose::u64 &sender_size,
+                 const xsce_ose::u64 &receiverSize, const std::vector<xsce_ose::block> &sender_set);
 
-        void ComputeHashOutputs(util::u64 width_in_bytes, util::u64 sender_size, util::Timer &timer, const std::vector<std::vector<util::u8>> &trans_hash_inputs, util::u64 hash_length_in_bytes, util::Channel &ch);
+        void ComputeHashOutputs(xsce_ose::u64 width_in_bytes, xsce_ose::u64 sender_size, xsce_ose::Timer &timer, const std::vector<std::vector<xsce_ose::u8>> &trans_hash_inputs, xsce_ose::u64 hash_length_in_bytes, xsce_ose::Channel &ch);
     };
 } // namespace oprf_psi

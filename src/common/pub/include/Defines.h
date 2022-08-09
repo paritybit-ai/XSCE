@@ -35,7 +35,7 @@
 #define OPRF_PSI_STEP5 "[ Oprf output compare ]"
 #define OPRF_PSI_STEP6 "[ Oprf psi over ]"
 
-namespace util
+namespace xsce_ose
 {
 	using i64 = oc::i64;
 	using u64 = oc::u64;
@@ -71,4 +71,4 @@ namespace util
 	using Curve = osuCrypto::REllipticCurve;
 	using Point = osuCrypto::REccPoint;
 	using Number = osuCrypto::REccNumber;
-} // namespace util
+} // namespace xsce_ose

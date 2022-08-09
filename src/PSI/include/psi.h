@@ -43,6 +43,6 @@ namespace xscePsiAlg
                                 std::vector<uint64_t> &rltVec,
                                 OptAlg *optAlg,
                                 std::vector<uint64_t> &srvIndexVec,
-                                std::vector<util::block>& oprf_values,
+                                std::vector<xsce_ose::block>& oprf_values,
                                 int roleSwitch = 1);
 } // namespace xscePsiAlg

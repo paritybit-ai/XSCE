@@ -28,7 +28,7 @@
 #include "Defines.h"
 #include "toolkits/util/include/xlog.h"
 
-namespace util
+namespace xsce_ose
 {
 
 	using namespace std;
