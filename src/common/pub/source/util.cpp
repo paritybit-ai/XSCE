@@ -367,8 +367,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for srv rcv only
             otOptRcv.ip = optAlg->ipVec[1];
@@ -378,8 +378,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for client send only
             otOptSnd.ip = optAlg->ipVec[1];
@@ -419,8 +419,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for srv rcv only
             otOptRcv.ip = optAlg->ipVec[1];
@@ -430,8 +430,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for client send only
             otOptSnd.ip = optAlg->ipVec[1];
@@ -471,8 +471,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for srv rcv only
             otOptRcv.ip = optAlg->ipVec[1];
@@ -482,8 +482,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for client send only
             otOptSnd.ip = optAlg->ipVec[1];
@@ -524,8 +524,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for srv rcv only
             otOptRcv.ip = optAlg->ipVec[1];
@@ -535,8 +535,8 @@ namespace util
         {
             otOpt.ip = optAlg->ipVec[0];
             otOpt.port = optAlg->portVec[0];
-            otOpt.rmtIp = optAlg->ipVec[1];
-            otOpt.rmtPort = optAlg->portVec[1];
+            // otOpt.rmtIp = optAlg->ipVec[1];
+            // otOpt.rmtPort = optAlg->portVec[1];
 
             //for client send only
             otOptSnd.ip = optAlg->ipVec[1];

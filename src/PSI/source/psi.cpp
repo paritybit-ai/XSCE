@@ -36,6 +36,7 @@
 namespace xscePsiAlg
 {
     using namespace util;
+    using namespace xsce_ose;
     int64_t savePsiRltVec(std::vector<uint64_t> &rltVec, std::vector<uint64_t> &indexHash)
     {
         int rlt = 0;
@@ -57,7 +58,17 @@ namespace xscePsiAlg
         return rlt;
     }
 
-    int64_t oprfPsiAlgClient(OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<util::block> &oprf_values)
+    void SetOprfPsiParams(const OptAlg &opt, oprf_psi::OprfPsi* psi_object) {
+        psi_object->SetWidth(opt.oprfWidth);
+        psi_object->SetLogHeight(opt.oprfLogHeight);
+        psi_object->SetHashLengthInBytes(opt.oprfHashLenInBytes);
+        psi_object->SetBucket(opt.oprfBucket1);
+        psi_object->SetHashLen(opt.hashLen);
+        psi_object->SetCommonSeed(opt.commonSeed, opt.commonSeed1);
+        psi_object->SetInertalSeed(opt.inertalSeed, opt.inertalSeed1);
+    }
+
+    int64_t oprfPsiAlgClient(OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<block> &oprf_values)
     {
         int64_t rlt = 0;
         LOG_INFO("oprf psi alg client mode begin...");
@@ -76,10 +87,6 @@ namespace xscePsiAlg
         }
         std::string ip = optAlg->addr;
         int port = optAlg->port;
-        if (port > 0)
-        {
-            ip = ip + ":" + std::to_string(port);
-        }
 
         uint32_t rptTime = 1;
 
@@ -92,7 +99,7 @@ namespace xscePsiAlg
 
                 oprf_psi::OprfPsiServer psi_server(ip, port);
                 //to init common seed & internal seed.
-                psi_server.ParseOpt(*optAlg);
+                SetOprfPsiParams(*optAlg, &psi_server);
 
                 psi_server.SetOprfValuesFlag(get_oprf_values);
                 psi_server.OprfPsiAlg((uint8_t *)hashBuf, senderSize, receiverSize);
@@ -104,7 +111,7 @@ namespace xscePsiAlg
                 LOG_INFO("begin run oprf receiver..");
                 oprf_psi::OprfPsiClient psi_client(ip, port);
                 //to init common seed & internal seed.
-                psi_client.ParseOpt(*optAlg);
+                SetOprfPsiParams(*optAlg, &psi_client);
 
                 psi_client.SetOprfValuesFlag(get_oprf_values);
                 psi_client.OprfPsiAlg((uint8_t *)hashBuf, receiverSize, senderSize);
@@ -121,7 +128,7 @@ namespace xscePsiAlg
         return rlt;
     }
 
-    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<util::block> &oprf_values, int roleSwitch)
+    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<block> &oprf_values, int roleSwitch)
     {
         int64_t rlt = -1;
         LOG_INFO("hashbufPsiAlgClient top level ...");
@@ -244,11 +251,11 @@ namespace xscePsiAlg
     }
     int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, int roleSwitch)
     {
-        std::vector<util::block> tmp;
+        std::vector<block> tmp;
         return hashbufPsiAlgClient(hashBufInput, psiLen, rltVec, optAlg, srvIndexVec, false, tmp, roleSwitch);
     }
 
-    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, std::vector<util::block> &oprf_values, int roleSwitch)
+    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, std::vector<block> &oprf_values, int roleSwitch)
     {
         return hashbufPsiAlgClient(hashBufInput, psiLen, rltVec, optAlg, srvIndexVec, true, oprf_values, roleSwitch);
     }

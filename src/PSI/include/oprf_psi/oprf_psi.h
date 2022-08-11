@@ -45,60 +45,65 @@ namespace oprf_psi
         }
         virtual ~OprfPsi() {}
         virtual int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles) = 0;
-        bool ParseOpt(const OptAlg &opt)
-        {
-            if (opt.oprfWidth > 0)
-            {
-                width = opt.oprfWidth;
-                LOG_INFO("oprf psi alg. set width to " << width);
-            }
-
-            if (opt.oprfLogHeight > 0)
-            {
-                logHeight = opt.oprfLogHeight;
-                height = 1 << (opt.oprfLogHeight);
-                LOG_INFO("oprf psi alg client mode. set logHeight to " << logHeight);
-            }
-
-            if (opt.oprfHashLenInBytes > 0)
-            {
-                hashLengthInBytes = opt.oprfHashLenInBytes;
-                LOG_INFO("oprf psi alg client mode. set hashLengthInBytes to " << hashLengthInBytes);
-            }
-
-            if (opt.oprfBucket1 > 0)
-            {
-                bucket1 = 1 << (opt.oprfBucket1);
-                bucket2 = 1 << (opt.oprfBucket1);
-                LOG_INFO("oprf psi alg client mode. set bucket1 & bucket2 to " << bucket1);
-            }
-            if (opt.hashLen > 0)
-            {
-                hashLen = opt.hashLen;
-            }
-            if (opt.commonSeed > 0 && commonSeed1 > 0)
-            {
-                commonSeed = opt.commonSeed;
-                commonSeed1 = opt.commonSeed1;
-            }
-            if (opt.inertalSeed > 0 && opt.inertalSeed1 > 0)
-            {
-                inertalSeed = opt.inertalSeed;
-                inertalSeed1 = opt.inertalSeed1;
-            }
-            
-            return true;
-        }
 
         void SetOprfValuesFlag(bool flag) {save_ov_ = flag;}
-        std::vector<util::block> GetOprfValues() {return oprf_values_;}
+        std::vector<xsce_ose::block> GetOprfValues() {return oprf_values_;}
         void SaveOprfValues(char* hash_inputs, size_t size) {
             if (save_ov_) {
                 uint64_t hash_out[2];
                 util::getMd5((unsigned char*)hash_inputs, size, (unsigned char*)hash_out);
-                util::block tmp(hash_out[0], hash_out[1]);
+                xsce_ose::block tmp(hash_out[0], hash_out[1]);
                 LOG_DEBUG("oprf_value:" << tmp);
                 oprf_values_.emplace_back(std::move(tmp));
+            }
+        }
+        void SetHashLen(uint64_t hash_len) {
+            if (hash_len > 0) {
+                hashLen = hash_len;
+            }
+        }
+        void SetWidth(uint32_t w) {
+            if (w > 0) {
+                width = w;
+            }
+        }
+        void SetLogHeight(uint32_t log_height) {
+            if (log_height > 0) {
+                logHeight = log_height;
+            }
+        }
+        void SetHeight(uint32_t h) {
+            if (h > 0) {
+                height = h;
+            }
+        }
+        void SetHashLengthInBytes(uint32_t hash_length_in_bytes) {
+            if (hash_length_in_bytes > 0) {
+                hashLengthInBytes = hash_length_in_bytes;
+            }
+        }
+        void SetHash1LengthInBytes(uint64_t hash1_length_in_bytes) {
+            if (hash1_length_in_bytes > 0) {
+                hash1LengthInBytes = hash1_length_in_bytes;
+            }
+        }
+        void SetBucket(uint32_t bucket) {
+            if (bucket > 0) {
+                bucket1 = 1 << bucket;
+                bucket2 = 1 << bucket;
+                LOG_INFO("oprf psi alg client mode. set bucket1 & bucket2 to " << bucket1);
+            }
+        }
+        void SetCommonSeed(uint64_t seed, uint64_t seed1) {
+            if (seed > 0 && seed1 > 0) {
+                commonSeed = seed;
+                commonSeed1 = seed1;
+            }
+        }
+        void SetInertalSeed(uint64_t seed, uint64_t seed1) {
+            if (seed > 0 && seed1 > 0) {
+                inertalSeed = seed;
+                inertalSeed1 = seed1;
             }
         }
 
@@ -120,6 +125,6 @@ namespace oprf_psi
         uint32_t port_;
 
         bool save_ov_{false};
-        std::vector<util::block> oprf_values_;
+        std::vector<xsce_ose::block> oprf_values_;
     };
 } // namespace oprf_psi

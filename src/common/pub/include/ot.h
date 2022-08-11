@@ -65,7 +65,7 @@
 
 using namespace osuCrypto;
 
-namespace util
+namespace xsce_ose
 {
     typedef struct _NcoOtOpt
     {
