@@ -188,8 +188,9 @@ int main(int argc, char **argv)
 		}
 
 		//init ip vector &port vector
-		optVec[i].ipVec.push_back(ip);
-		optVec[i].ipVec.push_back(ipRmt);
+        optVec[i].ipVec.resize(2);
+        optVec[i].ipVec[role % 2] = ip;
+        optVec[i].ipVec[(role + 1) % 2] = ipRmt;
 		optVec[i].portVec.push_back(port);
 		optVec[i].portVec.push_back(port);
 
