@@ -763,8 +763,10 @@ namespace xsce_ose
 	{
 		int64_t rlt = -1;
 
+        // ip/port of server
 		std::string ip = opt.ip;
 		uint32_t port = opt.port;
+        LOG_INFO("clientRcvBuf, ip:" << ip << ", port:" << port);
 
 		IOService ios;
 		oc::Session ep1(ios, ip, port, SessionMode::Client);
