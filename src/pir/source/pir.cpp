@@ -54,7 +54,7 @@ namespace xscePirAlg
         //for data reading
         std::vector<std::string> psiStr;
         std::vector<std::string> dataRowVec;
-        std::vector<std::vector<std::string>> strMtx;
+        std::vector<std::vector<std::string> > strMtx;
 
         LOG_INFO("pir2PartyAlgTerminalBatch pir top level ...");
 
@@ -200,7 +200,7 @@ namespace xscePirAlg
         LOG_INFO("pool_num=" << pool_num);
 
         //here to run pir alg in each pool
-        std::vector<std::vector<std::string>> pir_rlt(pool_num);
+        std::vector<std::vector<std::string> > pir_rlt(pool_num);
         std::vector<std::string> total_pir_rlt;
 
         data_info.pir_rlt = &pir_rlt;
@@ -338,6 +338,8 @@ namespace xscePirAlg
         std::string fn = optAlg->rltFn;
         savePirRlt2File(&pir_rlt, fn);
 
+        // set rlt to 0 which means successful result  .Modified by wumingzi. 2022:08:31,Wednesday,12:10:33.
+        rlt = 0;
         return rlt;
     }
 
@@ -1007,7 +1009,7 @@ namespace xscePirAlg
 
         uint8_t *id_hash_buf = alg_info->id_hash_buf;    //id hash number buf.
         int32_t hash_byte_len = alg_info->hash_byte_len; //the byte length of each hash vaule.
-        uint64_t id_num = alg_info->id_num;               //the number of id string.
+        uint64_t id_num = alg_info->id_num;              //the number of id string.
         uint64_t bucket = alg_info->total_bucket_num;
 
         LOG_INFO("pirBucketFilter bucket=" << bucket);
@@ -1414,8 +1416,8 @@ namespace xscePirAlg
 
         //allocate buffer size for each pool
         std::vector<uint32_t *> &bucket_pool_buf = data_info->bucket_pool_buf;
-        std::vector<std::vector<std::string>> &bucket_pool_data_row = data_info->bucket_pool_data_row;
-        std::vector<std::vector<std::string>> &id_str = data_info->id_str;
+        std::vector<std::vector<std::string> > &bucket_pool_data_row = data_info->bucket_pool_data_row;
+        std::vector<std::vector<std::string> > &id_str = data_info->id_str;
         std::vector<int64_t> *original_index_id = data_info->original_index_id;
 
         std::vector<std::string> *original_id_str = data_info->original_id_str;
@@ -1623,7 +1625,7 @@ namespace xscePirAlg
 
         std::vector<uint32_t *> &bucket_pool_buf = data_info->bucket_pool_buf;
         int len = bucket_pool_buf.size();
-        
+
         for (int64_t i = 0; i < len; i++)
         {
             auto pool_volume = data_info->id_str.at(i).size();
@@ -1654,10 +1656,10 @@ namespace xscePirAlg
             }
         }
 
-        LOG_INFO("\n" << log.str());
+        LOG_INFO("\n"
+                 << log.str());
     }
 
-  
     //aes decode function.   .Modified by wumingzi. 2022:06:17,Friday,23:58:26.
     //cipher_buf: ciphder data (entire cipher data from pir server side, only decodes part of them whose aes key is available)
     //key_buf: key data
@@ -1811,7 +1813,6 @@ namespace xscePirAlg
         return rlt;
     }
 
- 
     // here to combine multiple pirOpt to one pirOpt  .Modified by wumingzi/wumingzi. 2022:04:23,Saturday,19:15:52.
     //we should copy multiple hash buffer data to one hash buf
     //and so does with encBuf/keyBuf/
@@ -1849,7 +1850,7 @@ namespace xscePirAlg
             LOG_ERROR("combinePirOpt input base=" << base << " or len=" << len << " overflows ,totalPirCnt=" << totalPirCnt);
             return rlt;
         }
-        
+
         bool isServer = false;
         if (0 == optAlg->role)
             isServer = true;
@@ -1923,7 +1924,7 @@ namespace xscePirAlg
         int strUint32Len = strEncLen * 2;
 
         LOG_INFO("newElement=" << newElement << ",newSrvElement=" << newSrvElement << ",hashUint32Len=" << hashUint32Len
-                  << ",strUint32Len=" << strUint32Len << ",keyUint32Len=" << keyUint32Len << ",strEncLen=" << strEncLen);
+                               << ",strUint32Len=" << strUint32Len << ",keyUint32Len=" << keyUint32Len << ",strEncLen=" << strEncLen);
 
         if (newElement < 0)
         {
