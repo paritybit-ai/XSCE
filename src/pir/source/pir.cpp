@@ -75,7 +75,7 @@ namespace xscePirAlg
         if (nullptr == status)
         {
             LOG_ERROR("pir2PartyAlgTerminal input status is null");
-            return rlt;
+            return OSE_ALG_GLOBAL_CONFIG_ERROR;
         }
 
         status->algName = "terminalPir";
@@ -95,19 +95,19 @@ namespace xscePirAlg
         else
         {
             LOG_ERROR("terminal pir alg. input data file rows =" << fileRow << " is error. ");
-            return rlt;
+            return OSE_ALG_DATA_READ_ERROR;
         }
 
         if (dataCol < 0 || dataCol >= fileCol)
         {
             LOG_ERROR("terminal pir alg. input data col=" << dataCol << " is error. ");
-            return rlt;
+            return OSE_ALG_INPUT_CONFIG_ERROR;
         }
 
         if (headLine < 0 || headLine >= fileRow)
         {
             LOG_ERROR("terminal pir alg. input headline =" << headLine << " is error. ");
-            return rlt;
+            return OSE_ALG_INPUT_CONFIG_ERROR;
         }
 
         //for both client & server to get the col column data as index data(psi input)

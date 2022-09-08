@@ -69,6 +69,16 @@ namespace xscePirAlg
     using OptAlg = xsce_ose::OptAlg;
     using namespace osuCrypto;
     //here for  solo pir project which will be open sourced.
+    
+    // add err code for return   .Modified by wumingzi. 2022:09:07,Wednesday,22:42:35.
+    #define OSE_ALG_GLOBAL_CONFIG_ERROR -1001
+    #define OSE_ALG_CHECK_OPT_PARAM_ERROR -1002
+    #define OSE_ALG_INPUT_CONFIG_ERROR -1004
+    #define OSE_ALG_DATA_READ_ERROR -1005
+    #define OSE_ALG_DATA_ALIGN_ERROR -1006
+    #define OSE_ALG_INPUT_OPT_ERROR -1007
+    #define OSE_ALG_INPUT_STATUS_ERROR -1008
+    //   .Modification over by wumingzi. 2022:09:07,Wednesday,22:42:54.
 
     typedef struct _AlgStatus
     {
@@ -131,7 +141,7 @@ namespace xscePirAlg
         int secu_key = 10000; //secuKey indicates the number of each bucket in pir alg.
         int bucket_pool_size = 1000 * 1000;
         int bucket_pool_num = 1;
-        std::vector<std::vector<std::string>> id_str; //hold the id string for both srv&cli
+        std::vector<std::vector<std::string> > id_str; //hold the id string for both srv&cli
 
         //for both srv&cli
         uint32_t *id_hash_buf = nullptr; //id hash number buf.
@@ -149,11 +159,11 @@ namespace xscePirAlg
         std::vector<int64_t> bucket_pool_vol;    //the volume of each bucket pool;
 
         //for pir srver only.
-        std::vector<std::vector<std::string>> bucket_pool_data_row; //the bucket pool which contains srv data row;
-        int64_t max_str_len = 128;                                  //the maximum string length of server data row.
+        std::vector<std::vector<std::string> > bucket_pool_data_row; //the bucket pool which contains srv data row;
+        int64_t max_str_len = 128;                                   //the maximum string length of server data row.
 
         //for cli to save result
-        std::vector<std::vector<std::string>> *pir_rlt;
+        std::vector<std::vector<std::string> > *pir_rlt;
 
         //for idle data.
         uint8_t idle_data_row = 0;
