@@ -334,15 +334,36 @@ namespace xscePirAlg
 
         //   .Modification over by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:26.
 
+        // free buf mem  .Modified by wumingzi. 2022:09:08,Thursday,15:50:10.
+        freePirDataInfo(&data_info);
+
         //. save pri alg result.
         std::string fn = optAlg->rltFn;
         savePirRlt2File(&pir_rlt, fn);
-
         // set rlt to 0 which means successful result  .Modified by wumingzi. 2022:08:31,Wednesday,12:10:33.
         rlt = 0;
         return rlt;
     }
 
+    // free hash buf of data_info  .Modified by wumingzi. 2022:09:08,Thursday,15:46:58.
+    void freePirDataInfo(PirDataInfo *data_info)
+    {
+        if (nullptr == data_info)
+            return;
+
+        if (nullptr != data_info->id_hash_buf)
+            free(data_info->id_hash_buf);
+
+        int len = data_info->bucket_pool_buf.size();
+        for (int64_t i = 0; i < len; i++)
+        {
+            if (nullptr != data_info->bucket_pool_buf.at(i))
+                free(data_info->bucket_pool_buf.at(i));
+        }
+
+        return;
+    }
+    //   .Modification over by wumingzi. 2022:09:08,Thursday,15:47:03.
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num)
     {
         int64_t rlt = -1;

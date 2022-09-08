@@ -256,6 +256,10 @@ namespace xscePirAlg
 
     void showPirDataInfo(PirDataInfo *data_info, int show_cnt = 0);
 
+    //   .Modified by wumingzi. 2022:09:08,Thursday,15:46:22.
+    void freePirDataInfo(PirDataInfo * data_info);
+    //   .Modification over by wumingzi. 2022:09:08,Thursday,15:46:28.
+    
     std::string showPirOpt(PirBasicOpt *opt);
 
     int64_t savePirStrBufRlt(uint64_t *strBuf, int64_t strNum, int64_t decStrEncLen, std::vector<std::string> *rltStr);
