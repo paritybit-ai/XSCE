@@ -611,7 +611,7 @@ namespace xscePirAlg
 
             rmt_id_num = getUint32FromRmt(optAlg, str_encode_len, ch_name);
             LOG_INFO("srv get rmt id_num=" << rmt_id_num);
-            for (uint64_t i = 0; i < str_num; i++)
+            for (uint64_t i = 0; i < str_num && i < max_show_cnt; i++)
             {
                 LOG_INFO("pir srv data[" << i << "]=" << data_row->at(i));
             }

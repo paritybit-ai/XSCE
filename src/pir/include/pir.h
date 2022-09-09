@@ -254,7 +254,7 @@ namespace xscePirAlg
 
     bool checkPirDataInfo(PirDataInfo *data_info, std::string &msg);
 
-    void showPirDataInfo(PirDataInfo *data_info, int show_cnt = 0);
+    void showPirDataInfo(PirDataInfo *data_info, int show_cnt = 10);
 
     //   .Modified by wumingzi. 2022:09:08,Thursday,15:46:22.
     void freePirDataInfo(PirDataInfo * data_info);
