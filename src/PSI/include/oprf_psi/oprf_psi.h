@@ -53,7 +53,7 @@ namespace oprf_psi
                 uint64_t hash_out[2];
                 util::getMd5((unsigned char*)hash_inputs, size, (unsigned char*)hash_out);
                 xsce_ose::block tmp(hash_out[0], hash_out[1]);
-                LOG_DEBUG("oprf_value:" << tmp);
+                // LOG_DEBUG("oprf_value:" << tmp);
                 oprf_values_.emplace_back(std::move(tmp));
             }
         }
