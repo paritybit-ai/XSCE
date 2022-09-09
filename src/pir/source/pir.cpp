@@ -1500,9 +1500,9 @@ namespace xscePirAlg
             uint8_t *buf_dst = (uint8_t *)&bucket_pool_buf.at(pool_index)[buf_offset];
             uint8_t *buf_src = (uint8_t *)&data_buf[i * hash_byte_length];
 
-            showHexValue((uint32_t *)buf_src, 4, 1);
+            // showHexValue((uint32_t *)buf_src, 4, 1);
             copyBufWithIndex(buf_dst, buf_src, hash_byte_length, index_char_pos, index_char_len);
-            showHexValue((uint32_t *)buf_dst, 4, 1);
+            // showHexValue((uint32_t *)buf_dst, 4, 1);
 
             //move data row to pool
             original_index = original_index_id->at(i);
