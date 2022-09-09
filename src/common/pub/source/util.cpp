@@ -810,7 +810,7 @@ namespace util
         int64_t base = 0;
 
         //for debug
-        maxShowCnt = strNum;
+        // maxShowCnt = strNum;
         for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
         {
             base = i * 2;
