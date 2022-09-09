@@ -1219,6 +1219,9 @@ namespace util
             dst[base] = aesOutput[i].as<std::uint64_t>()[0];
             dst[base + 1] = aesOutput[i].as<std::uint64_t>()[1];
         }
+       
+        delete[] aesInput;
+        delete[] aesOutput;
 
         rlt = 0;
         return rlt;
