@@ -56,7 +56,7 @@ namespace xscePirAlg
         std::vector<std::string> dataRowVec;
         std::vector<std::vector<std::string> > strMtx;
 
-        LOG_INFO("pir2PartyAlgTerminalBatch pir top level ...");
+        LOG_INFO("pir2PartyAlgTerminalBatch ose pir top level ...");
 
         if (nullptr == optAlg)
         {
@@ -118,7 +118,7 @@ namespace xscePirAlg
         {
             maxStrLen = getRowStrVecFromCsvFile(datafn, dataRowVec, headLine);
             int64_t dataRow = dataRowVec.size();
-            LOG_INFO("terminal pir alg. data row vec size=" << dataRow << ",maxStrLen=" << maxStrLen);
+            LOG_INFO("ose terminal pir alg. data row vec size=" << dataRow << ",maxStrLen=" << maxStrLen);
         }
 
         //for future use, need to keep data in memory, no need to read data from file each time.
@@ -182,15 +182,25 @@ namespace xscePirAlg
         {
             data_info.original_data_str = &dataRowVec;
 
-            if (maxStrLen <= optAlg->dataRowLen)
+            if (optAlg->dataRowLen > 0)
             {
-                data_info.max_str_len = maxStrLen;
-                LOG_INFO("set max_str_len to maxStrLen val=" << data_info.max_str_len);
+
+                if (maxStrLen <= optAlg->dataRowLen)
+                {
+                    data_info.max_str_len = maxStrLen;
+                    LOG_INFO("ose terminal pir, set max_str_len to maxStrLen val=" << data_info.max_str_len);
+                }
+                else
+                {
+                    data_info.max_str_len = optAlg->dataRowLen;
+                    LOG_INFO("ose terminal pir, set max_str_len to opt val=" << data_info.max_str_len);
+                }
             }
             else
             {
-                data_info.max_str_len = optAlg->dataRowLen;
-                LOG_INFO("set max_str_len to opt val=" << data_info.max_str_len);
+                optAlg->dataRowLen = maxStrLen;
+                data_info.max_str_len = maxStrLen;
+                LOG_INFO("ose terminal pir max_str_len opt is 0,so set max_str_len to maxStrLen val=" << data_info.max_str_len);
             }
         }
 
