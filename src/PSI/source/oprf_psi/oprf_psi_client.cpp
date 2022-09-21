@@ -295,6 +295,12 @@ namespace oprf_psi
         LOG_INFO("in rcv run: height_in_bytes=" << height_in_bytes << ",width_in_bytes=" << width_in_bytes << ",location_in_bytes=" << location_in_bytes);
         LOG_INFO("receiver_size_in_bytes=" << receiver_size_in_bytes << ",width_bucket1=" << width_bucket1);
 
+        //TODO
+        //ch.close();
+        IOService ios;
+        Endpoint ep(ios, ip_, port_, EpMode::Client, "Run");
+        ch = ep.addChannel("Run", "Run");
+
         //  .Modified by wumingzi. 2022:08:01,Monday,22:14:14.
         /*
          server uses ot to get seed to generate matrix C,this is different with paper which transfer an entire column in each OT
@@ -357,10 +363,9 @@ namespace oprf_psi
         //for transposed matrix, a block holds width_bucket1 rows, so the loop time = width/width_bucket1
         //matrx_delta is D
 
+        //TODO
         ch.close();
-        IOService ios0;
-        Endpoint ep0(ios0, ip_, port_, EpMode::Client, "compute");
-        ch = ep0.addChannel();
+        ch = ep.addChannel("compute", "compute");
 
         std::vector<std::vector<u8>> trans_locations(width_bucket1, std::vector<u8>(receiver_size * location_in_bytes + sizeof(u32)));
         std::vector<std::vector<u8>> matrixA(width_bucket1, std::vector<u8>(height_in_bytes));
@@ -420,13 +425,9 @@ namespace oprf_psi
             LOG_INFO("Compute step Receiver received communication: " << recvData);
         }
 
-        ep0.stop();
-        ios0.stop();
-
+        //TODO
         ch.close();
-        IOService ios;
-        Endpoint ep(ios, ip_, port_, EpMode::Client, "output");
-        ch = ep.addChannel();
+        ch = ep.addChannel("output", "output");
 
         LOG_INFO("Receiver matrix sent and transposed hash input computed");
         timer.setTimePoint("Receiver matrix sent and transposed hash input computed");
@@ -444,9 +445,6 @@ namespace oprf_psi
         LOG_INFO("begin to compare oprf value.");
         ReceiveHashOutputsAndComputePSI(bucket2, hashLengthInBytes, sender_size, ch, all_hashes, result_);
 
-        ep.stop();
-        ios.stop();
-
         timer.setTimePoint("Receiver intersection computed");
 
         LOG_INFO("\n" << timer);
@@ -456,6 +454,11 @@ namespace oprf_psi
         u64 sentData = ch.getTotalDataSent();
         u64 recvData = ch.getTotalDataRecv();
         u64 totalData = sentData + recvData;
+
+        //TODO
+        ch.close();
+        ep.stop();
+        ios.stop();
 
         LOG_INFO("Final step Receiver sent communication: " << sentData / std::pow(2.0, 20) << " MB");
         LOG_INFO("Final step Receiver received communication: " << recvData / std::pow(2.0, 20) << " MB");
@@ -479,9 +482,9 @@ namespace oprf_psi
         uint64_t *dataBase2;
         uint8_t *dataBuf = hashBuf;
         LOG_INFO("Client ip:" << ip_ << ", port:" << port_);
-        IOService ios;
-        Endpoint ep(ios, ip_, port_, EpMode::Client, chName);
-        Channel ch = ep.addChannel();
+        //IOService ios;
+        //Endpoint ep(ios, ip_, port_, EpMode::Client, chName);
+        Channel ch; //   = ep.addChannel();
         LOG_INFO("chName=" << chName);
         LOG_INFO("dataByteLen=" << dataByteLen);
         LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
@@ -514,9 +517,9 @@ namespace oprf_psi
 
         const block block_common_seed = oc::toBlock(commonSeed, commonSeed1);
         Run(prng, ch, block_common_seed, senderSize, receiverSize, receiverSet);
-        ch.close();
-        ep.stop();
-        ios.stop();
+        //ch.close();
+        //ep.stop();
+        //ios.stop();
         return 0;
     }
 

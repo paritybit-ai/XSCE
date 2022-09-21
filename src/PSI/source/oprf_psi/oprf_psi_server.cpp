@@ -234,6 +234,12 @@ namespace oprf_psi
          w=width is the column size of matrxA/B/D. so here are width OT transfers. server is chooser,client is sender.
         */
 
+        //TODO
+        //ch.close();
+        IOService ios;
+        Endpoint ep(ios, ip_, port_, EpMode::Server, "Run");
+        ch = ep.addChannel("Run", "Run");
+
         //////////////////// Base OTs /////////////////////////////////
         std::vector<block> ot_messages(width);
         BitVector choices(width);
@@ -287,11 +293,10 @@ namespace oprf_psi
         //trans_locations means the value of v[i], which location which row in matrixD to be set to 0 according to (c) of step 1
         //for transposed matrix, a block holds width_bucket1 rows, so the loop time = width/width_bucket1
         //matrx_delta is D
-
+    
+        //TODO
         ch.close();
-        IOService ios0;
-        Endpoint ep0(ios0, ip_, port_, EpMode::Server, "compute");
-        ch = ep0.addChannel();
+        ch = ep.addChannel("compute", "compute");
 
         std::vector<std::vector<u8> > matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
         std::vector<std::vector<u8> > trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
@@ -321,20 +326,19 @@ namespace oprf_psi
         LOG_INFO("Sender transposed hash input computed");
         timer.setTimePoint("Sender transposed hash input computed");
 
-        ep0.stop();
-        ios0.stop();
 
+        //TODO
         ch.close();
-        IOService ios;
-        Endpoint ep(ios, ip_, port_, EpMode::Server, "output");
-        ch = ep.addChannel();
-        
+        ch = ep.addChannel("output", "output");
+
         /////////////////// Compute hash outputs ///////////////////////////
         //for each element x,  use H2 to calculate oprf value ,H2(C1[v[1]],C2[v[2]]....,Cw[v[w]])
         //send all oprv value of x to client.
         ComputeHashOutputs(width_in_bytes, sender_size,
                            timer, trans_hash_inputs, hashLengthInBytes, ch);
 
+        //TODO
+        ch.close();
         ep.stop();
         ios.stop();
 
@@ -365,11 +369,11 @@ namespace oprf_psi
 
         LOG_INFO("senderSize=" << std::dec << senderSize << ",receiverSize=" << receiverSize);
 
-        IOService ios;
-        Endpoint ep(ios, ip_, port_, EpMode::Server, chName);
+        //IOService ios;
+        //Endpoint ep(ios, ip_, port_, EpMode::Server, chName);
 
         LOG_INFO("before addChannel psi ");
-        Channel ch = ep.addChannel();
+        Channel ch; //   = ep.addChannel();
 
         std::vector<block> senderSet(senderSize);
         //prng should use 128 bit seed.
@@ -400,9 +404,9 @@ namespace oprf_psi
         const block block_common_seed = oc::toBlock(commonSeed, commonSeed1);
         Run(prng, ch, block_common_seed, senderSize, receiverSize, senderSet);
 
-        ch.close();
-        ep.stop();
-        ios.stop();
+        //ch.close();
+        //ep.stop();
+        //ios.stop();
         return 0;
     }
 
