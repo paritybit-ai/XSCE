@@ -357,6 +357,11 @@ namespace oprf_psi
         //for transposed matrix, a block holds width_bucket1 rows, so the loop time = width/width_bucket1
         //matrx_delta is D
 
+        ch.close();
+        IOService ios0;
+        Endpoint ep0(ios0, ip_, port_, EpMode::Client, "compute");
+        ch = ep0.addChannel();
+
         std::vector<std::vector<u8>> trans_locations(width_bucket1, std::vector<u8>(receiver_size * location_in_bytes + sizeof(u32)));
         std::vector<std::vector<u8>> matrixA(width_bucket1, std::vector<u8>(height_in_bytes));
         std::vector<std::vector<u8>> matrix_delta(width_bucket1, std::vector<u8>(height_in_bytes));
@@ -407,6 +412,21 @@ namespace oprf_psi
             // for each element y, calculate the value of A1[v[1]],A2[v[2]]....,Aw[v[w]] and store them in trans_hash_inputs
             ComputeHashInputs(w, receiver_size, trans_locations, location_in_bytes, shift, w_left, matrixA, trans_hash_inputs);
         }
+        {
+            u64 sentData = ch.getTotalDataSent();
+            u64 recvData = ch.getTotalDataRecv();
+
+            LOG_INFO("Compute step Receiver sent communication: " << sentData);
+            LOG_INFO("Compute step Receiver received communication: " << recvData);
+        }
+
+        ep0.stop();
+        ios0.stop();
+
+        ch.close();
+        IOService ios;
+        Endpoint ep(ios, ip_, port_, EpMode::Client, "output");
+        ch = ep.addChannel();
 
         LOG_INFO("Receiver matrix sent and transposed hash input computed");
         timer.setTimePoint("Receiver matrix sent and transposed hash input computed");
@@ -423,6 +443,9 @@ namespace oprf_psi
         ///////////////// Receive hash outputs from sender and compute PSI ///////////////////
         LOG_INFO("begin to compare oprf value.");
         ReceiveHashOutputsAndComputePSI(bucket2, hashLengthInBytes, sender_size, ch, all_hashes, result_);
+
+        ep.stop();
+        ios.stop();
 
         timer.setTimePoint("Receiver intersection computed");
 

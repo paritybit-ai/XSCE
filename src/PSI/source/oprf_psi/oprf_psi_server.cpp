@@ -288,6 +288,11 @@ namespace oprf_psi
         //for transposed matrix, a block holds width_bucket1 rows, so the loop time = width/width_bucket1
         //matrx_delta is D
 
+        ch.close();
+        IOService ios0;
+        Endpoint ep0(ios0, ip_, port_, EpMode::Server, "compute");
+        ch = ep0.addChannel();
+
         std::vector<std::vector<u8> > matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
         std::vector<std::vector<u8> > trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
         std::vector<std::vector<u8> > trans_locations(width_bucket1, std::vector<u8>(sender_size * location_in_bytes + sizeof(u32)));
@@ -316,11 +321,22 @@ namespace oprf_psi
         LOG_INFO("Sender transposed hash input computed");
         timer.setTimePoint("Sender transposed hash input computed");
 
+        ep0.stop();
+        ios0.stop();
+
+        ch.close();
+        IOService ios;
+        Endpoint ep(ios, ip_, port_, EpMode::Server, "output");
+        ch = ep.addChannel();
+        
         /////////////////// Compute hash outputs ///////////////////////////
         //for each element x,  use H2 to calculate oprf value ,H2(C1[v[1]],C2[v[2]]....,Cw[v[w]])
         //send all oprv value of x to client.
         ComputeHashOutputs(width_in_bytes, sender_size,
                            timer, trans_hash_inputs, hashLengthInBytes, ch);
+
+        ep.stop();
+        ios.stop();
 
         LOG_INFO("\n"
                  << timer);
