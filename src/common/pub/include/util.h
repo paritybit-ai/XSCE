@@ -46,22 +46,23 @@
 #define CLIENT_C 1
 #define SERVER_C 0
 
-#define PTR_ERR_RTN(x)                                 \
-    {                                                  \
-        if (nullptr == (x))                            \
-        {                                              \
-            LOG_ERROR("(x)" << " is invalid. ");       \
-            return -1;                                 \
-        }                                              \
+#define PTR_ERR_RTN(x)                     \
+    {                                      \
+        if (nullptr == (x))                \
+        {                                  \
+            LOG_ERROR("(x)"                \
+                      << " is invalid. "); \
+            return -1;                     \
+        }                                  \
     }
 
-#define VMIN_ERR_RTN(x, val)                                  \
-    {                                                         \
-        if ((x) < (val))                                      \
-        {                                                     \
+#define VMIN_ERR_RTN(x, val)                   \
+    {                                          \
+        if ((x) < (val))                       \
+        {                                      \
             LOG_ERROR((x) << " is invalid. "); \
-            return -1;                                        \
-        }                                                     \
+            return -1;                         \
+        }                                      \
     }
 
 namespace util
@@ -99,10 +100,13 @@ namespace util
     int64_t copyThdAlgOpt(OptAlg *optDst, OptAlg *optSrc, int thdIdx);
     int64_t copyAlgOpt(OptAlg *optDst, OptAlg *optSrc);
 
-    int64_t savePirRltThd(std::vector<std::vector<std::string>> &pirRltVec,
+    int64_t savePirRltThd(std::vector<std::vector<std::string> > &pirRltVec,
                           std::vector<std::string> *pirRlt);
 
-    int64_t savePirRlt2File(std::vector<std::vector<std::string>> *pirRltVec, std::string fn);
+    int64_t savePirRlt2File(std::vector<std::vector<std::string> > *pirRltVec, std::string fn);
+    int64_t savePirRlt2StrVec(std::vector<std::vector<std::string> > *pirRltVec, std::vector<std::string> &vec);
+    int64_t savePsiRlt2IntVec(std::vector<std::vector<std::int64_t> > *pirRltVec, std::vector<std::int64_t> &vec);
+
 
     void showHexValue(uint32_t *buf, uint64_t dataLen, uint64_t len);
     // tcp tool
