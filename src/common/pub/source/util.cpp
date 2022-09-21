@@ -148,7 +148,6 @@ namespace util
         optDst->sampleDataBuf = optSrc->sampleDataBuf;
         optDst->lableDataBuf = optSrc->lableDataBuf;
 
-
         optDst->stopCmd = optSrc->stopCmd;
 
         optDst->taskJobId = optSrc->taskJobId;
@@ -216,7 +215,7 @@ namespace util
         return rlt;
     }
 
-    int64_t savePirRlt2File(std::vector<std::vector<std::string>> *pirRltVec, std::string fn)
+    int64_t savePirRlt2File(std::vector<std::vector<std::string> > *pirRltVec, std::string fn)
     {
         int64_t rlt = -1;
 
@@ -254,7 +253,74 @@ namespace util
         return rlt;
     }
 
-    int64_t savePirRltThd(std::vector<std::vector<std::string>> &pirRltVec,
+    int64_t savePirRlt2StrVec(std::vector<std::vector<std::string> > *pirRltVec, std::vector<std::string> &vec)
+    {
+        int64_t rlt = -1;
+
+        if (nullptr == pirRltVec)
+        {
+            LOG_ERROR("savePirRlt2StrVec input pirRltVec is null " );
+            return rlt;
+        }
+        int64_t len = pirRltVec->size();
+        int64_t total_len = 0;
+        for (int64_t i = 0; i < len; i++)
+        {
+            total_len += pirRltVec->at(i).size();
+        }
+
+        vec.resize(total_len);
+        rlt = 0;
+        for (int64_t i = 0; i < len; i++)
+        {
+            std::vector<std::string> *rltStr = &pirRltVec->at(i);
+            int64_t alen = rltStr->size();
+            for (int64_t j = 0; j < alen; j++)
+            {
+                if (rlt < total_len)
+                    vec.at(rlt) = rltStr->at(j);
+                rlt++;
+            }
+        }
+
+        return rlt;
+    }
+
+    int64_t savePsiRlt2IntVec(std::vector<std::vector<std::int64_t> > *pirRltVec, std::vector<std::int64_t> &vec)
+    {
+        int64_t rlt = -1;
+
+        if (nullptr == pirRltVec)
+        {
+            LOG_ERROR("savePirRlt2StrVec input pirRltVec is null " );
+            return rlt;
+        }
+        int64_t len = pirRltVec->size();
+        int64_t total_len = 0;
+        for (int64_t i = 0; i < len; i++)
+        {
+            total_len += pirRltVec->at(i).size();
+        }
+
+        vec.resize(total_len);
+        rlt = 0;
+        for (int64_t i = 0; i < len; i++)
+        {
+            std::vector<std::int64_t> *rltStr = &pirRltVec->at(i);
+            int64_t alen = rltStr->size();
+            for (int64_t j = 0; j < alen; j++)
+            {
+                if (rlt < total_len)
+                    vec.at(rlt) = rltStr->at(j);
+                rlt++;
+            }
+        }
+
+        return rlt;
+    }
+
+
+    int64_t savePirRltThd(std::vector<std::vector<std::string> > &pirRltVec,
                           std::vector<std::string> *pirRlt)
     {
         int64_t rlt = -1;
@@ -623,7 +689,7 @@ namespace util
         IOService ios;
         Endpoint ep(ios, ip, EpMode::Server, "chRcv" + chName);
         LOG_INFO("chRecvBufWithSend, server mode.ip=" << ip << ",chname="
-                  << "chRcv" + chName);
+                                                      << "chRcv" + chName);
 
         Channel ch = ep.addChannel();
         LOG_INFO("add channel ok");
@@ -676,7 +742,8 @@ namespace util
 
         IOService ios;
         Endpoint ep(ios, ip, EpMode::Client, "chRcv" + chName);
-        LOG_INFO("chSendBufWithRcv, client mode.ip=" << ip << ",chname=" << "chRcv" + chName);
+        LOG_INFO("chSendBufWithRcv, client mode.ip=" << ip << ",chname="
+                                                     << "chRcv" + chName);
 
         Channel ch = ep.addChannel();
         LOG_INFO("add channel ok");
@@ -806,7 +873,7 @@ namespace util
             return rlt;
         }
 
-        uint64_t* aesKeyBuf = keyBuf;
+        uint64_t *aesKeyBuf = keyBuf;
         int64_t base = 0;
 
         //for debug
@@ -1223,6 +1290,9 @@ namespace util
         delete[] aesInput;
         delete[] aesOutput;
 
+        delete[] aesInput;
+        delete[] aesOutput;
+
         rlt = 0;
         return rlt;
     }
@@ -1368,7 +1438,7 @@ namespace util
     void TimeUtils::start(std::string msg)
     {
         LOG_INFO("............................................................................");
-        LOG_INFO("Start " + msg); 
+        LOG_INFO("Start " + msg);
         gettimeofday(&startTime, 0);
     }
 

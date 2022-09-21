@@ -211,9 +211,13 @@ namespace xscePirAlg
 
         //here to run pir alg in each pool
         std::vector<std::vector<std::string> > pir_rlt(pool_num);
+        std::vector<std::vector<std::int64_t> > pir_cli_rlt(pool_num);
+        std::vector<std::vector<std::int64_t> > pir_srv_rlt(pool_num);
         std::vector<std::string> total_pir_rlt;
 
         data_info.pir_rlt = &pir_rlt;
+        data_info.pir_cli_rlt = &pir_cli_rlt;
+        data_info.pir_srv_rlt = &pir_srv_rlt;
         //here need to use multithread to speed up performance
         std::vector<int64_t> matched_pool_index;
         int64_t matched_pool_num = 0;
@@ -355,6 +359,308 @@ namespace xscePirAlg
         return rlt;
     }
 
+    int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &id_vec,
+                                         std::vector<std::string> &data_vec,
+                                         std::vector<int64_t> &psi_cli_rlt,
+                                         std::vector<int64_t> &psi_srv_rlt)
+    {
+        int64_t rlt = -1;
+        std::string rltfn = "";
+        bool isServer = false;
+        uint32_t hashBitLen = 128;
+        uint32_t hashByteLen = 16;
+        uint32_t maxStrLen = 128;
+        uint64_t maxShowCnt = 200;
+
+        TimeUtils t1, t2, t3;
+
+        //for data reading
+        std::vector<std::string> &psiStr = id_vec;
+        std::vector<std::string> &dataRowVec = data_vec;
+
+        LOG_INFO("pir2PartyAlgTerminalBatch ose pir top level ...");
+
+        if (nullptr == optAlg)
+        {
+            LOG_ERROR("pir2PartyAlgTerminal input optAlg is null");
+            return rlt;
+        }
+
+        rltfn = optAlg->rltFn;
+
+        if (0 == optAlg->role)
+            isServer = true;
+
+        AlgStatus *status = (AlgStatus *)optAlg->statusPtr;
+        if (nullptr == status)
+        {
+            LOG_ERROR("pir2PartyAlgTerminal input status is null");
+            return OSE_ALG_GLOBAL_CONFIG_ERROR;
+        }
+
+        status->algName = "terminalPir";
+
+        //1. no need to read data string
+        int fileRow = dataRowVec.size();
+        int psi_len = psiStr.size();
+        if (psi_len != fileRow && isServer)
+        {
+            LOG_ERROR("terminal pir alg. server input psi_len =" << psi_len << "!=fileRow=" << fileRow << " is error. ");
+            return OSE_ALG_INPUT_CONFIG_ERROR;
+        }
+
+        LOG_INFO("terminal pir alg. psi str vector size=" << psiStr.size() << " . ");
+
+        if (isServer)
+        {
+            maxStrLen = getMaxStrLen(dataRowVec);
+            int64_t dataRow = dataRowVec.size();
+            LOG_INFO("ose terminal pir alg. data row vec size=" << dataRow << ",maxStrLen=" << maxStrLen);
+        }
+
+        //for future use, need to keep data in memory, no need to read data from file each time.
+
+        //convert string to hashBuf
+        hashByteLen = hashBitLen / (8 * (sizeof(unsigned char)));
+        LOG_INFO("terminal pir alg. data hash byte len=" << hashByteLen);
+
+        //2. convert data to hashBuf
+        uint32_t *hashBuf = nullptr;
+        uint64_t realElementNum = 0;
+        int64_t idxCnt = psiStr.size();
+
+        std::vector<uint64_t> seedVec;
+        uint64_t seed = optAlg->commonSeed;
+        uint64_t seed2 = optAlg->inertalSeed;
+        seedVec.push_back(seed);
+        seedVec.push_back(seed2);
+
+        std::vector<int64_t> indexId(idxCnt);
+
+        initSortIndex(indexId, idxCnt);
+        realElementNum = convertStrVec2Md5Index(psiStr, hashBuf, indexId);
+
+        if (realElementNum > 1)
+        {
+            int showCnt = realElementNum > maxShowCnt ? maxShowCnt : realElementNum;
+            showHexValue(hashBuf, 4, showCnt);
+        }
+
+        //3. split data to bucket pool according specified rule
+        int secu_key = optAlg->secuK;
+        int pool_size = 1;
+        int pool_num = optAlg->dataLen;
+
+        if (optAlg->simdLen > 1)
+        {
+            pool_size = optAlg->simdLen;
+        }
+        LOG_INFO("secuKey=" << secu_key << ",pool_num=" << pool_num);
+
+        //here begin to split id_data to bucket pool.
+        PirDataInfo data_info;
+
+        data_info.secu_key = secu_key;
+        data_info.role = optAlg->role;
+        data_info.id_hash_buf = hashBuf;
+        data_info.id_hash_byte_len = hashByteLen;
+        data_info.id_num = realElementNum;
+        data_info.original_index_id = &indexId;
+        data_info.bucket_pool_size = pool_size;
+        data_info.bucket_pool_num = pool_num;
+        data_info.index_char_pos = optAlg->intMul;
+        data_info.original_id_str = &psiStr;
+        if (isServer)
+        {
+            data_info.original_data_str = &dataRowVec;
+
+            if (optAlg->dataRowLen > 0)
+            {
+
+                if (maxStrLen <= optAlg->dataRowLen)
+                {
+                    data_info.max_str_len = maxStrLen;
+                    LOG_INFO("ose terminal pir, set max_str_len to maxStrLen val=" << data_info.max_str_len);
+                }
+                else
+                {
+                    data_info.max_str_len = optAlg->dataRowLen;
+                    LOG_INFO("ose terminal pir, set max_str_len to opt val=" << data_info.max_str_len);
+                }
+            }
+            else
+            {
+                optAlg->dataRowLen = maxStrLen;
+                data_info.max_str_len = maxStrLen;
+                LOG_INFO("ose terminal pir max_str_len opt is 0,so set max_str_len to maxStrLen val=" << data_info.max_str_len);
+            }
+        }
+
+        splitIdBufBucket(&data_info);
+        pool_num = data_info.bucket_pool_num;
+        LOG_INFO("pool_num=" << pool_num);
+
+        //here to run pir alg in each pool
+        std::vector<std::vector<std::string> > pir_rlt(pool_num);
+        std::vector<std::vector<std::int64_t> > pir_cli_rlt(pool_num);
+        std::vector<std::vector<std::int64_t> > pir_srv_rlt(pool_num);
+        std::vector<std::string> total_pir_rlt;
+
+        data_info.pir_rlt = &pir_rlt;
+        data_info.pir_cli_rlt = &pir_cli_rlt;
+        data_info.pir_srv_rlt = &pir_srv_rlt;
+        //here need to use multithread to speed up performance
+        std::vector<int64_t> matched_pool_index;
+        int64_t matched_pool_num = 0;
+        for (int64_t i = 0; i < pool_num; i++)
+        {
+            auto cur_pool_vol = data_info.bucket_pool_vol.at(i);
+            bool zero_vol = checkLocalRmtNumNonZero(optAlg, cur_pool_vol, i);
+            showBlk(3, 3);
+            LOG_INFO("pir pool  [" << i << "] check remote id_num is valid or not.");
+            if (zero_vol)
+            {
+                // pir2PartyAlgTerminalPool(optAlg, &data_info, i);
+                matched_pool_index.push_back(i);
+                matched_pool_num++;
+            }
+            else
+            {
+                LOG_INFO("pool[" << i << "] is empty,no need to run");
+            }
+        }
+
+        LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
+        // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
+        int max_thread_num = 16;
+        int thread_num = optAlg->thdNum;
+        int cpu_base = optAlg->cpuNum;
+        int thd_loop = 0;
+
+        if (thread_num < 1 || thread_num > max_thread_num)
+        {
+            thread_num = 1;
+            LOG_INFO("set thread number thread_num=" << thread_num);
+        }
+
+        std::vector<std::thread> algTask(thread_num);
+        std::vector<OptAlg> optVec(thread_num);
+
+        //copy optAlg for each thread
+        for (int64_t i = 0; i < thread_num; i++)
+        {
+            copyThdAlgOpt(&optVec[i], optAlg, i);
+
+            optVec[i].cpuNum = i + cpu_base;
+            optVec[i].portNum = 1;
+            optVec[i].thdNum = 1;
+            optVec[i].thdIdex = i;
+        }
+        thd_loop = (matched_pool_num + thread_num - 1) / thread_num;
+        LOG_INFO("thd_loop=" << thd_loop << ",thread_num=" << thread_num << ",cpu_base=" << cpu_base);
+
+        int query_pool_base = 0;
+        int cur_thd_num = thread_num;
+        for (int64_t i = 0; i < thd_loop; i++)
+        {
+            LOG_INFO("query_pool_base=" << query_pool_base << ",loop=" << i);
+            if (query_pool_base + cur_thd_num > matched_pool_num)
+            {
+                cur_thd_num = matched_pool_num - query_pool_base;
+                LOG_INFO("last query pool loop=" << i << ", cur_thd_num=" << cur_thd_num);
+            }
+            LOG_INFO("query_pool_base=" << query_pool_base << ",loop=" << i << ",cur_thd_num=" << cur_thd_num);
+
+            for (int64_t j = 0; j < cur_thd_num; j++)
+            {
+                int cur_thd_idx = query_pool_base + j;
+                int cur_pool_idx = matched_pool_index.at(cur_thd_idx);
+                LOG_INFO("start  pir thread loop " << i << ",thdIdx=" << cur_thd_idx << ",cur_pool_idx=" << cur_pool_idx);
+                optVec.at(j).thdIdex = cur_thd_idx;
+                try
+                {
+                    algTask[j] = std::thread(pir2PartyAlgTerminalPool, &optVec[j], &data_info, cur_pool_idx);
+                }
+                catch (const std::system_error &e)
+                {
+                    std::cerr << "Error in creating new thread at  pir alg!\n"
+                              << e.what() << std::endl;
+                    continue;
+                }
+            }
+
+            for (int64_t j = 0; j < cur_thd_num; j++)
+            {
+                try
+                {
+                    algTask[j].join();
+                }
+                catch (const std::system_error &e)
+                {
+                    std::cerr << "Error in joining thread at pir alg!\n"
+                              << e.what() << std::endl;
+                    continue;
+                }
+            }
+
+            //wait for thread over.
+            uint64_t thd_Ok_Num = 0;
+            std::vector<int64_t> thd_Ok_Vec(cur_thd_num, 0);
+            for (;;)
+            {
+                for (int64_t j = 0; j < cur_thd_num; j++)
+                {
+                    if (thd_Ok_Vec[j] > 0)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        if (optVec.at(j).thdOver)
+                        {
+                            thd_Ok_Vec[j] = 1;
+                            thd_Ok_Num++;
+                            LOG_INFO("total thd ok=" << thd_Ok_Num << ",current thdIdx=" << std::dec << i << " is over. ");
+                        }
+                    }
+                }
+
+                if ((uint64_t)cur_thd_num == thd_Ok_Num)
+                {
+                    LOG_INFO("all thread is over.");
+                    optAlg->thdOver = true;
+                    break;
+                }
+                SleepMsec(10);
+            }
+
+            query_pool_base += cur_thd_num;
+        }
+        //   .Modification over by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:26.
+
+        // free buf mem  .Modified by wumingzi. 2022:09:08,Thursday,15:50:10.
+        //. save pri alg result for client only.
+        if (!isServer)
+        {
+            savePirRlt2StrVec(&pir_rlt, data_vec);
+            savePsiDataRlt2Vec(&data_info, psi_cli_rlt);
+            LOG_INFO("finla pir rlt. data_vec size=" << data_vec.size() << ",psi_cli_rlt size=" << psi_cli_rlt.size() << ",psi_srv_rlt size=" << psi_srv_rlt.size());
+            sendInt64Mtx(optAlg, pir_srv_rlt);
+        }
+        else
+        { //srv rcv psi rlt index
+            pir_srv_rlt.resize(0);
+            rcvInt64Mtx(optAlg, pir_srv_rlt);
+            savePsiDataRlt2Vec(&data_info, pir_srv_rlt,psi_srv_rlt); //psi_srv_rlt is not used for client party.
+
+        }
+
+        freePirDataInfo(&data_info);
+        // set rlt to 0 which means successful result  .Modified by wumingzi. 2022:08:31,Wednesday,12:10:33.
+        rlt = 0;
+        return rlt;
+    }
+
     // free hash buf of data_info  .Modified by wumingzi. 2022:09:08,Thursday,15:46:58.
     void freePirDataInfo(PirDataInfo *data_info)
     {
@@ -392,6 +698,7 @@ namespace xscePirAlg
             return rlt;
         }
 
+        int64_t show_cnt = 100;
         auto max_pool_num = data_info->bucket_pool_num;
         if (pool_num < 0 || pool_num >= max_pool_num)
         {
@@ -470,8 +777,14 @@ namespace xscePirAlg
         //here srv&cli both have id_str/data row. begin to call basic pir alg.
         bool use_bucket_flag = true;
         std::vector<std::string> &pir_result = data_info->pir_rlt->at(pool_num);
+        std::vector<std::int64_t> &pir_cli_rlt = data_info->pir_cli_rlt->at(pool_num);
+        std::vector<std::int64_t> &pir_srv_rlt = data_info->pir_srv_rlt->at(pool_num);
+
         PirAlgInfo alg;
         alg.result = &pir_result;
+        alg.pir_srv_rlt = &pir_srv_rlt;
+        alg.pir_cli_rlt = &pir_cli_rlt;
+
         alg.id_hash_buf = data_buf;
         alg.id_num = pool_volume;
         alg.hash_byte_len = hash_byte_length;
@@ -494,8 +807,8 @@ namespace xscePirAlg
 
         auto pir_rlt = pir2PartyAlgTerminalBasic(optAlg, &alg);
 
-        LOG_INFO("pir rlt=" << pir_rlt);
-        for (uint64_t i = 0; i < pir_result.size(); i++)
+        LOG_INFO("pir rlt=" << pir_rlt << ",pool rlt num=" << pir_result.size());
+        for (uint64_t i = 0; i < pir_result.size() && i < show_cnt; i++)
         {
             LOG_INFO("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         }
@@ -525,13 +838,21 @@ namespace xscePirAlg
 
         int64_t id_num = alg_info->id_num;
         uint8_t *hash_buf = alg_info->id_hash_buf;
-        std::vector<std::string> *data_row = alg_info->data_row; //hold the data string for srv
-        std::vector<std::string> *result = alg_info->result;     //hold the id string for both srv&cli
+        std::vector<std::string> *data_row = alg_info->data_row;        //hold the data string for srv
+        std::vector<std::string> *result = alg_info->result;            //hold the id string for both srv&cli
+        std::vector<std::int64_t> *psi_cli_rlt = alg_info->pir_cli_rlt; //hold the id string for both srv&cli
+        std::vector<std::int64_t> *psi_srv_rlt = alg_info->pir_srv_rlt; //hold the id string for both srv&cli
+
         uint64_t rmt_id_num = 0;
 
         if ((nullptr == hash_buf || nullptr == result))
         {
             LOG_ERROR("hash_buf/result is null.exit");
+            return rlt;
+        }
+        if ((nullptr == psi_cli_rlt || nullptr == psi_srv_rlt))
+        {
+            LOG_ERROR("psi_cli_rlt/psi_srv_rlt is null.exit");
             return rlt;
         }
 
@@ -599,6 +920,10 @@ namespace xscePirAlg
             {
                 LOG_INFO(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
             }
+
+            //here copy psi rlt for client party
+            copyUint642Int64Vec(&psi_result, psi_cli_rlt);
+            copyUint642Int64Vec(&srv_resutl_index, psi_srv_rlt);
         }
 
         //server to encode data row to cipher data.
@@ -1410,12 +1735,13 @@ namespace xscePirAlg
 
         uint64_t bucket_pool_num = data_info->bucket_pool_num;
 
-        if (256 % bucket_pool_num != 0)
-        {
-            bucket_pool_num = bucket_pool_sum;
-            data_info->bucket_pool_num = bucket_pool_sum;
-            LOG_INFO("splitIdBufBucketByPoolNum, set bucket_pool_num to default vale =" << bucket_pool_sum);
-        }
+        //no need to requrie bucket_pool_num to be factor of 256.
+        // if (256 % bucket_pool_num != 0)
+        // {
+        //     bucket_pool_num = bucket_pool_sum;
+        //     data_info->bucket_pool_num = bucket_pool_sum;
+        //     LOG_INFO("splitIdBufBucketByPoolNum, set bucket_pool_num to default vale =" << bucket_pool_sum);
+        // }
 
         LOG_INFO("splitIdBufBucketByPoolNum,id_num=" << id_num << ",bucket_pool_sum=" << bucket_pool_sum << ",pool num=" << bucket_pool_num);
         LOG_INFO("splitIdBufBucketByPoolNum,index_char_pos=" << index_char_pos << ",bucket_pool_sum=" << bucket_pool_sum << ",pool num=" << bucket_pool_num);
@@ -1449,6 +1775,7 @@ namespace xscePirAlg
         std::vector<uint32_t *> &bucket_pool_buf = data_info->bucket_pool_buf;
         std::vector<std::vector<std::string> > &bucket_pool_data_row = data_info->bucket_pool_data_row;
         std::vector<std::vector<std::string> > &id_str = data_info->id_str;
+        std::vector<std::vector<int64_t> > &id_index = data_info->original_id_index;
         std::vector<int64_t> *original_index_id = data_info->original_index_id;
 
         std::vector<std::string> *original_id_str = data_info->original_id_str;
@@ -1500,6 +1827,9 @@ namespace xscePirAlg
             bucket_pool_data_row.resize(bucket_pool_num);
         }
         id_str.resize(bucket_pool_num);
+        // add psi cli/srv rlt save  .Modified by wumingzi. 2022:09:20,Tuesday,14:46:19.
+        id_index.resize(bucket_pool_num);
+        //   .Modification over by wumingzi. 2022:09:20,Tuesday,14:47:16.
 
         int64_t buf_offset = 0;
         int original_index = 0;
@@ -1517,6 +1847,10 @@ namespace xscePirAlg
             //move data row to pool
             original_index = original_index_id->at(i);
             id_str.at(pool_index).push_back(original_id_str->at(original_index));
+            // add psi cli/srv rlt save  .Modified by wumingzi. 2022:09:20,Tuesday,14:46:59.
+            id_index.at(pool_index).push_back(original_index);
+            //   .Modification over by wumingzi. 2022:09:20,Tuesday,14:47:16.
+
             if (is_server)
             {
                 bucket_pool_data_row.at(pool_index).push_back(original_data_str->at(original_index));
@@ -2279,6 +2613,325 @@ namespace xscePirAlg
 
         rlt = rltStr->size();
 
+        return rlt;
+    }
+
+    int64_t getMaxStrLen(std::vector<std::string> &str)
+    {
+        int64_t rlt = -1;
+        int64_t len = str.size();
+        for (int64_t i = 0; i < len; i++)
+        {
+            int64_t cur_len = str.at(i).size();
+            if (cur_len > rlt)
+                rlt = cur_len;
+        }
+
+        return rlt;
+    }
+
+    int64_t copyUint642Int64Vec(std::vector<std::uint64_t> *src, std::vector<std::int64_t> *dst)
+    {
+        int64_t rlt = -1;
+        if (nullptr == src || nullptr == dst)
+        {
+            LOG_ERROR("copyUint642Int64Vec input src/dst is null");
+            return rlt;
+        }
+        int64_t len = src->size();
+        dst->resize(len);
+        for (int64_t i = 0; i < len; i++)
+        {
+            dst->at(i) = src->at(i);
+        }
+        rlt = len;
+        return rlt;
+    }
+
+    int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+                               std::vector<std::int64_t> &vec)
+    {
+        int64_t rlt = -1;
+
+        if (nullptr == data_info)
+        {
+            LOG_ERROR("savePirRlt2StrVec input optAlg/data_info is null ");
+            return rlt;
+        }
+
+        std::vector<std::vector<std::int64_t> > &original_id_index = data_info->original_id_index;
+
+        std::vector<std::vector<std::int64_t> > *pir_cli_rlt = data_info->pir_cli_rlt;
+        if (nullptr == pir_cli_rlt)
+        {
+            LOG_ERROR("savePirRlt2StrVec input data_info pir_srv_rlt/pir_cli_rlt is null ");
+            return rlt;
+        }
+
+        //first save cli rlt to vec
+        int64_t pool_num = original_id_index.size();
+        int64_t len2 = pir_cli_rlt->size();
+        if (pool_num != len2)
+        {
+            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num  << ",len2=" << len2);
+            return rlt;
+        }
+
+        int64_t total_num = 0;
+        int64_t save_num = 0;
+        for (int64_t i = 0; i < pool_num; i++)
+        {
+            total_num += pir_cli_rlt->at(i).size();
+        }
+
+        vec.resize(total_num);
+        for (int64_t i = 0; i < pool_num; i++)
+        {
+            std::vector<std::int64_t> &cur_vec = pir_cli_rlt->at(i);
+            std::vector<std::int64_t> &cur_index = original_id_index.at(i);
+            int64_t len = cur_vec.size();
+            int64_t index_len = cur_index.size();
+            int64_t index = 0;
+            for (int64_t j = 0; j < len; j++)
+            {
+                index = cur_vec.at(j);
+                if (index >= 0 && index < index_len)
+                    vec.at(save_num++) = cur_index.at(index);
+                else
+                    vec.at(save_num++) = -1;
+            }
+        }
+
+        //then send srv rlt to server
+        rlt = save_num;
+        return rlt;
+    }
+
+    int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+                               std::vector<std::vector<std::int64_t> > &psi_rlt,
+                               std::vector<std::int64_t> &vec)
+    {
+        int64_t rlt = -1;
+
+        if (nullptr == data_info)
+        {
+            LOG_ERROR("savePirRlt2StrVec input optAlg/data_info is null ");
+            return rlt;
+        }
+
+        std::vector<std::vector<std::int64_t> > &original_id_index = data_info->original_id_index;
+
+        std::vector<std::vector<std::int64_t> > *pir_srv_rlt = &psi_rlt;
+
+        if (nullptr == pir_srv_rlt)
+        {
+            LOG_ERROR("savePirRlt2StrVec input data_info pir_srv_rlt/pir_cli_rlt is null ");
+            return rlt;
+        }
+
+        //first save cli rlt to vec
+        int64_t pool_num = original_id_index.size();
+        int64_t len1 = pir_srv_rlt->size();
+        if (pool_num != len1 )
+        {
+            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len1=" << len1 );
+            return rlt;
+        }
+
+        int64_t total_num = 0;
+        int64_t save_num = 0;
+        for (int64_t i = 0; i < pool_num; i++)
+        {
+            total_num += pir_srv_rlt->at(i).size();
+        }
+
+        vec.resize(total_num);
+        for (int64_t i = 0; i < pool_num; i++)
+        {
+            std::vector<std::int64_t> &cur_vec = pir_srv_rlt->at(i);
+            std::vector<std::int64_t> &cur_index = original_id_index.at(i);
+            int64_t len = cur_vec.size();
+            int64_t index_len = cur_index.size();
+            int64_t index = 0;
+            for (int64_t j = 0; j < len; j++)
+            {
+                index = cur_vec.at(j);
+                if (index >= 0 && index < index_len)
+                    vec.at(save_num++) = cur_index.at(index);
+                else
+                    vec.at(save_num++) = -1;
+            }
+        }
+
+        //then send srv rlt to server
+        rlt = save_num;
+        return rlt;
+    }
+
+    int64_t sendInt64Mtx(OptAlg *optAlg, std::vector<std::vector<std::int64_t> > &vec)
+    {
+        int64_t rlt = -1;
+
+        if (nullptr == optAlg)
+        {
+            LOG_ERROR("sendInt64Mtx input optAlg is null ");
+            return rlt;
+        }
+        bool isServer = false;
+        if (0 == optAlg->role)
+            isServer = true;
+
+        int64_t len = vec.size();
+
+        std::vector<std::int64_t> len_vec;
+
+        int64_t total_len = 0;
+        len_vec.resize(len);
+        for (int64_t i = 0; i < len; i++)
+        {
+            int64_t cur_len = vec.at(i).size();
+            total_len += cur_len;
+            len_vec.at(i) = cur_len;
+        }
+
+        int64_t send_num = total_len + len + 1; //last number set to len
+
+        int64_t *buf = nullptr;
+        buf = (int64_t *)allocateUInt64Vec(send_num);
+
+        if (nullptr == buf)
+        {
+            LOG_ERROR("sendInt64Mtx buf allocate error");
+            return rlt;
+        }
+
+        int64_t fill_num = 0;
+        for (int64_t i = 0; i < len; i++)
+        {
+            std::vector<std::int64_t> &cur_vec = vec.at(i);
+            int64_t cur_len = cur_vec.size();
+            for (int64_t j = 0; j < cur_len; j++)
+            {
+                buf[fill_num++] = cur_vec.at(j);
+            }
+        }
+
+        for (int64_t i = 0; i < len; i++)
+        {
+            buf[fill_num++] = len_vec.at(i);
+        }
+
+        buf[fill_num++] = len; //vector number
+        LOG_INFO("sendInt64Mtx buf len=" << fill_num << ",send_num=" << send_num);
+
+        if (isServer)
+        {
+            srvSendBuf(optAlg, (uint64_t *)buf, send_num);
+        }
+        else
+        {
+            cliSendBuf(optAlg, (uint64_t *)buf, send_num);
+        }
+
+        rlt = 0;
+        return rlt;
+    }
+
+    int64_t rcvInt64Mtx(OptAlg *optAlg, std::vector<std::vector<std::int64_t> > &vec)
+    {
+        int64_t rlt = -1;
+        int64_t show_cnt = 100;
+
+        if (nullptr == optAlg)
+        {
+            LOG_ERROR("rcvInt64Mtx input optAlg is null ");
+            return rlt;
+        }
+        bool isServer = false;
+        if (0 == optAlg->role)
+            isServer = true;
+
+        int64_t *buf = nullptr;
+        uint64_t rcv_num = 0;
+        int64_t vec_num = 0;
+        int64_t total_num = 0;
+        int64_t total_save_num = 0;
+        vec.resize(0);
+
+        if (isServer)
+        {
+            srvRcvBuf(optAlg, (uint64_t **)&buf, &rcv_num);
+        }
+        else
+        {
+            cliRcvBuf(optAlg, (uint64_t **)&buf, &rcv_num);
+        }
+
+        LOG_INFO("rcv buf len=" << rcv_num);
+        std::vector<std::int64_t> len_vec;
+
+        if (rcv_num < 1)
+        {
+            LOG_ERROR("rcv buf len error=" << rcv_num);
+            return rlt;
+        }
+
+        vec_num = buf[rcv_num - 1];
+        if (vec_num < 1)
+        {
+            LOG_ERROR("rcv buf vec_num error=" << vec_num);
+            return rlt;
+        }
+
+        len_vec.resize(vec_num);
+        total_num = rcv_num - 1 - vec_num;
+        if (total_num < 0)
+        {
+            LOG_ERROR("rcv buf total_num error=" << total_num);
+            return rlt;
+        }
+
+        for (int64_t i = 0; i < vec_num; i++)
+        {
+
+            len_vec.at(i) = buf[total_num + i];
+            total_save_num += len_vec.at(i);
+            if (i < show_cnt)
+                LOG_INFO("vec[" << i << "] sieze=" << len_vec.at(i));
+        }
+
+        if (total_save_num != total_num)
+        {
+            LOG_ERROR("rcv buf total_num error=" << total_num << ",total_save_num=" << total_save_num);
+            return rlt;
+        }
+
+        total_save_num = 0;
+        vec.resize(vec_num);
+        for (int64_t i = 0; i < vec_num; i++)
+        {
+            int64_t cur_len = len_vec.at(i);
+            std::vector<std::int64_t> &cur_vec = vec.at(i);
+            if (cur_len < 0)
+            {
+                LOG_ERROR("rcv buf vec[" << i << "] len error=" << cur_len);
+                return rlt;
+            }
+
+            cur_vec.resize(cur_len);
+            for (int64_t j = 0; j < cur_len; j++)
+            {
+                cur_vec.at(j) = buf[total_save_num++];
+            }
+        }
+
+        if (total_save_num != total_num)
+        {
+            LOG_ERROR("rcv len total_save_num error=" << total_save_num << ",total_num=" << total_num);
+            return rlt;
+        }
+
+        rlt = 0;
         return rlt;
     }
 

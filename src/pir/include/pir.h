@@ -68,16 +68,16 @@ namespace xscePirAlg
 {
     using OptAlg = xsce_ose::OptAlg;
     using namespace osuCrypto;
-    //here for  solo pir project which will be open sourced.
-    
-    // add err code for return   .Modified by wumingzi. 2022:09:07,Wednesday,22:42:35.
-    #define OSE_ALG_GLOBAL_CONFIG_ERROR -1001
-    #define OSE_ALG_CHECK_OPT_PARAM_ERROR -1002
-    #define OSE_ALG_INPUT_CONFIG_ERROR -1004
-    #define OSE_ALG_DATA_READ_ERROR -1005
-    #define OSE_ALG_DATA_ALIGN_ERROR -1006
-    #define OSE_ALG_INPUT_OPT_ERROR -1007
-    #define OSE_ALG_INPUT_STATUS_ERROR -1008
+//here for  solo pir project which will be open sourced.
+
+// add err code for return   .Modified by wumingzi. 2022:09:07,Wednesday,22:42:35.
+#define OSE_ALG_GLOBAL_CONFIG_ERROR -1001
+#define OSE_ALG_CHECK_OPT_PARAM_ERROR -1002
+#define OSE_ALG_INPUT_CONFIG_ERROR -1004
+#define OSE_ALG_DATA_READ_ERROR -1005
+#define OSE_ALG_DATA_ALIGN_ERROR -1006
+#define OSE_ALG_INPUT_OPT_ERROR -1007
+#define OSE_ALG_INPUT_STATUS_ERROR -1008
     //   .Modification over by wumingzi. 2022:09:07,Wednesday,22:42:54.
 
     typedef struct _AlgStatus
@@ -127,6 +127,10 @@ namespace xscePirAlg
         //for cli only
         std::vector<std::string> *result = nullptr; //hold the id string for both cli
                                                     //cli bucket status
+
+        std::vector<std::int64_t> *pir_cli_rlt; //hold psi rlt of client party
+        std::vector<std::int64_t> *pir_srv_rlt; //hold psi rlt of server party
+
         uint64_t *bucket_range_buf = nullptr;
         int64_t total_bucket_num = 0;
         std::vector<int64_t> id_bucket_index;
@@ -141,7 +145,8 @@ namespace xscePirAlg
         int secu_key = 10000; //secuKey indicates the number of each bucket in pir alg.
         int bucket_pool_size = 1000 * 1000;
         int bucket_pool_num = 1;
-        std::vector<std::vector<std::string> > id_str; //hold the id string for both srv&cli
+        std::vector<std::vector<std::string> > id_str;             //hold the id string for both srv&cli
+        std::vector<std::vector<std::int64_t> > original_id_index; //hold the original id index for both srv&cli
 
         //for both srv&cli
         uint32_t *id_hash_buf = nullptr; //id hash number buf.
@@ -163,7 +168,9 @@ namespace xscePirAlg
         int64_t max_str_len = 128;                                   //the maximum string length of server data row.
 
         //for cli to save result
-        std::vector<std::vector<std::string> > *pir_rlt;
+        std::vector<std::vector<std::string> > *pir_rlt;      //hold pir rlt of client party
+        std::vector<std::vector<std::int64_t> > *pir_cli_rlt; //hold psi rlt of client party
+        std::vector<std::vector<std::int64_t> > *pir_srv_rlt; //hold psi rlt of server party
 
         //for idle data.
         uint8_t idle_data_row = 0;
@@ -232,6 +239,12 @@ namespace xscePirAlg
     int64_t pir2PartyAlgTerminalSingle(OptAlg *optAlg);
     int64_t pir2PartyAlgTerminalBatch(OptAlg *optAlg);
 
+    // for psi/pir combined use  .Modified by wumingzi. 2022:09:20,Tuesday,11:44:58.
+    int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &id_vec,
+                                         std::vector<std::string> &data_vec,
+                                         std::vector<int64_t> &psi_cli_rlt,
+                                         std::vector<int64_t> &psi_srv_rlt);
+
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num);
     int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info);
 
@@ -257,9 +270,9 @@ namespace xscePirAlg
     void showPirDataInfo(PirDataInfo *data_info, int show_cnt = 10);
 
     //   .Modified by wumingzi. 2022:09:08,Thursday,15:46:22.
-    void freePirDataInfo(PirDataInfo * data_info);
+    void freePirDataInfo(PirDataInfo *data_info);
     //   .Modification over by wumingzi. 2022:09:08,Thursday,15:46:28.
-    
+
     std::string showPirOpt(PirBasicOpt *opt);
 
     int64_t savePirStrBufRlt(uint64_t *strBuf, int64_t strNum, int64_t decStrEncLen, std::vector<std::string> *rltStr);
@@ -267,6 +280,21 @@ namespace xscePirAlg
     int64_t copyPirOptEncBuf(uint64_t *dst, std::vector<uint64_t *> *srcVec, std::vector<int64_t> *lenVec, int eleLen, int64_t total);
     int64_t combinePirOpt(OptAlg *optAlg, std::vector<PirBasicOpt> *pirOptVec, PirBasicOpt *pirOpt, int base, int len);
     int64_t freePirOptBuf(PirBasicOpt *pirOpt);
+
+    int64_t getMaxStrLen(std::vector<std::string> &str);
+    int64_t copyUint642Int64Vec(std::vector<std::uint64_t> *src, std::vector<std::int64_t> *dst);
+
+    int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+                               std::vector<std::int64_t> &vec);
+    int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+                               std::vector<std::vector<std::int64_t> > &psi_rlt,
+                               std::vector<std::int64_t> &vec);
+
+    int64_t sendInt64Mtx(OptAlg *optAlg,
+                         std::vector<std::vector<std::int64_t> > &vec);
+    int64_t rcvInt64Mtx(OptAlg *optAlg,
+                        std::vector<std::vector<std::int64_t> > &vec);
+
 }
 
 #endif //XSCE_THIRD_PARTY_PIR_ALG_PIR_H
