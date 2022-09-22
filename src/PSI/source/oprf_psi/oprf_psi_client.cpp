@@ -299,7 +299,8 @@ namespace oprf_psi
         //ch.close();
         IOService ios;
         Endpoint ep(ios, ip_, port_, EpMode::Client, "Run");
-        ch = ep.addChannel("Run", "Run");
+        std::string run_name = std::to_string(port_) + "Run";
+        ch = ep.addChannel(run_name, run_name);
 
         //  .Modified by wumingzi. 2022:08:01,Monday,22:14:14.
         /*
@@ -365,7 +366,8 @@ namespace oprf_psi
 
         //TODO
         ch.close();
-        ch = ep.addChannel("compute", "compute");
+        std::string compute_name = std::to_string(port_) + "compute";
+        ch = ep.addChannel(compute_name, compute_name);
 
         std::vector<std::vector<u8>> trans_locations(width_bucket1, std::vector<u8>(receiver_size * location_in_bytes + sizeof(u32)));
         std::vector<std::vector<u8>> matrixA(width_bucket1, std::vector<u8>(height_in_bytes));
@@ -427,7 +429,8 @@ namespace oprf_psi
 
         //TODO
         ch.close();
-        ch = ep.addChannel("output", "output");
+        std::string output_name = std::to_string(port_) + "output";
+        ch = ep.addChannel(output_name, output_name);
 
         LOG_INFO("Receiver matrix sent and transposed hash input computed");
         timer.setTimePoint("Receiver matrix sent and transposed hash input computed");

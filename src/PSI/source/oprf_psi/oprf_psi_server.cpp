@@ -238,7 +238,8 @@ namespace oprf_psi
         //ch.close();
         IOService ios;
         Endpoint ep(ios, ip_, port_, EpMode::Server, "Run");
-        ch = ep.addChannel("Run", "Run");
+        std::string run_name = std::to_string(port_) + "Run";
+        ch = ep.addChannel(run_name, run_name);
 
         //////////////////// Base OTs /////////////////////////////////
         std::vector<block> ot_messages(width);
@@ -296,7 +297,8 @@ namespace oprf_psi
     
         //TODO
         ch.close();
-        ch = ep.addChannel("compute", "compute");
+        std::string compute_name = std::to_string(port_) + "compute";
+        ch = ep.addChannel(compute_name, compute_name);
 
         std::vector<std::vector<u8> > matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
         std::vector<std::vector<u8> > trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
@@ -329,13 +331,13 @@ namespace oprf_psi
 
         //TODO
         ch.close();
-        ch = ep.addChannel("output", "output");
+        std::string output_name = std::to_string(port_) + "output";
+        ch = ep.addChannel(output_name, output_name);
 
         /////////////////// Compute hash outputs ///////////////////////////
         //for each element x,  use H2 to calculate oprf value ,H2(C1[v[1]],C2[v[2]]....,Cw[v[w]])
         //send all oprv value of x to client.
-        ComputeHashOutputs(width_in_bytes, sender_size,
-                           timer, trans_hash_inputs, hashLengthInBytes, ch);
+        ComputeHashOutputs(width_in_bytes, sender_size, timer, trans_hash_inputs, hashLengthInBytes, ch);
 
         //TODO
         ch.close();
