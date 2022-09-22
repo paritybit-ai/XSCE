@@ -1290,9 +1290,6 @@ namespace util
         delete[] aesInput;
         delete[] aesOutput;
 
-        delete[] aesInput;
-        delete[] aesOutput;
-
         rlt = 0;
         return rlt;
     }
