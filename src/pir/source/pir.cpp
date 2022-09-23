@@ -54,10 +54,8 @@ namespace xscePirAlg
         //for data reading
         std::vector<std::string> psiStr;
         std::vector<std::string> dataRowVec;
-        std::vector<std::vector<std::string> > strMtx;
 
         LOG_INFO("pir2PartyAlgTerminalBatch ose pir top level ...");
-
         if (nullptr == optAlg)
         {
             LOG_ERROR("pir2PartyAlgTerminal input optAlg is null");
@@ -83,14 +81,23 @@ namespace xscePirAlg
         //1. read data string
         LOG_INFO("terminal pir alg. datafn=" << datafn << ",col=" << dataCol << ",headline=" << headLine);
 
-        getStrMtxFromCsvFile(datafn, strMtx);
+        if (dataCol < 0)
+        {
+            LOG_ERROR("terminal pir alg. input data col=" << dataCol << " is error. ");
+            return OSE_ALG_INPUT_CONFIG_ERROR;
+        }
+        if (headLine < 0)
+        {
+            LOG_ERROR("terminal pir alg. input headLine=" << headLine << " is error. ");
+            return OSE_ALG_INPUT_CONFIG_ERROR;
+        }
 
-        int fileRow = strMtx.size();
-        int fileCol = 0;
+        maxStrLen = getRowStrVecFromCsvFileWithCol(datafn, psiStr, dataRowVec, headLine, dataCol);
+
+        int fileRow = psiStr.size();
         if (fileRow > 0)
         {
-            LOG_INFO("read file,row=" << strMtx.size() << ",col=" << strMtx.at(0).size());
-            fileCol = strMtx.at(0).size();
+            LOG_INFO("read file,row=" << fileRow);
         }
         else
         {
@@ -98,25 +105,11 @@ namespace xscePirAlg
             return OSE_ALG_DATA_READ_ERROR;
         }
 
-        if (dataCol < 0 || dataCol >= fileCol)
-        {
-            LOG_ERROR("terminal pir alg. input data col=" << dataCol << " is error. ");
-            return OSE_ALG_INPUT_CONFIG_ERROR;
-        }
-
-        if (headLine < 0 || headLine >= fileRow)
-        {
-            LOG_ERROR("terminal pir alg. input headline =" << headLine << " is error. ");
-            return OSE_ALG_INPUT_CONFIG_ERROR;
-        }
-
         //for both client & server to get the col column data as index data(psi input)
-        getStrColFromMtx(psiStr, strMtx, dataCol, headLine);
         LOG_INFO("terminal pir alg. psi str vector size=" << psiStr.size() << " . ");
 
         if (isServer)
         {
-            maxStrLen = getRowStrVecFromCsvFile(datafn, dataRowVec, headLine);
             int64_t dataRow = dataRowVec.size();
             LOG_INFO("ose terminal pir alg. data row vec size=" << dataRow << ",maxStrLen=" << maxStrLen);
         }
@@ -651,8 +644,7 @@ namespace xscePirAlg
         { //srv rcv psi rlt index
             pir_srv_rlt.resize(0);
             rcvInt64Mtx(optAlg, pir_srv_rlt);
-            savePsiDataRlt2Vec(&data_info, pir_srv_rlt,psi_srv_rlt); //psi_srv_rlt is not used for client party.
-
+            savePsiDataRlt2Vec(&data_info, pir_srv_rlt, psi_srv_rlt); //psi_srv_rlt is not used for client party.
         }
 
         freePirDataInfo(&data_info);
@@ -2673,7 +2665,7 @@ namespace xscePirAlg
         int64_t len2 = pir_cli_rlt->size();
         if (pool_num != len2)
         {
-            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num  << ",len2=" << len2);
+            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len2=" << len2);
             return rlt;
         }
 
@@ -2732,9 +2724,9 @@ namespace xscePirAlg
         //first save cli rlt to vec
         int64_t pool_num = original_id_index.size();
         int64_t len1 = pir_srv_rlt->size();
-        if (pool_num != len1 )
+        if (pool_num != len1)
         {
-            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len1=" << len1 );
+            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len1=" << len1);
             return rlt;
         }
 

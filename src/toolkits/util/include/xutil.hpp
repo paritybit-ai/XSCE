@@ -126,6 +126,7 @@ void showBlk(int a, int b, std::stringstream &log);
 int getStrMtxFromCsvFile(std::string fn, std::vector<std::vector<std::string>> &rlt);
 int getRowStrVecFromCsvFile(std::string fn, std::vector<std::string> &rlt, int headLine);
 int64_t getStrColFromMtx(std::vector<std::string> &strPsi, std::vector<std::vector<std::string>> &strMtx, int64_t row, int headLine);
+int64_t getRowStrVecFromCsvFileWithCol(std::string fn, std::vector<std::string> &id_vec,std::vector<std::string> &data_vec, int headLine, int col);
 
 void mergeSortUIntBuf(uint32_t *arr, uint32_t dataByteLen, int64_t begin, int64_t end, std::vector<uint64_t> &index);
 void mergeUIntBuf(uint32_t *array, uint32_t dataByteLen, int64_t left, int64_t mid, int64_t right, std::vector<uint64_t> &index);
