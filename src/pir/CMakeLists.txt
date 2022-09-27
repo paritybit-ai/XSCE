@@ -15,6 +15,6 @@ add_library(PIR STATIC ${SRCS2})
 
 include_directories("./include")
 
-target_link_libraries(pir common PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ssl crypto)
-target_link_libraries(pir2 common PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ssl crypto)
+target_link_libraries(pir common PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ${GRPC_LIBS} ssl crypto)
+target_link_libraries(pir2 common PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ${GRPC_LIBS} ssl crypto)
 target_link_libraries(PIR common PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ssl crypto)
