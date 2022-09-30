@@ -74,7 +74,8 @@ cp -rf XSCE_PATH/build/bin/arithmetic XSCE_PATH/src/arithmetic/Programs test_dir
 此外，若需要运行三方算法，由于使用诚实多数协议(Shamir)，为确保安全，还需要设置ssl证书，然后将证书拷贝至测试目录。
 ```shell
 cd XSCE_PATH/third_party/MP-SPDZ
-./Scripts/setup-ssl.sh [<number of parties> <ssl_dir>]
+./Scripts/setup-ssl.sh [<number of parties> <ssl_dir>]  
+如果提示'c_rehash: command not found'，可以进入<ssl_dir>，执行`for file in *.pem; do ln -s "$file" "$(openssl x509 -hash -noout -in "$file")".0; done` shell命令。
 mkdir test_dir/Player-Data
 cp XSCE_PATH/third_party/MP-SPDZ/ssl_dir/* test_dir/Player-Data/
 cd test_dir

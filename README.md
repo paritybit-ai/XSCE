@@ -74,6 +74,7 @@ In addition, if you want to run 3-party algorithms, you may need to set up ssl f
 ```shell
 cd XSCE_PATH/third_party/MP-SPDZ
 ./Scripts/setup-ssl.sh [<number of parties> <ssl_dir>]
+If it failed for `c_rehash: command not found`, change workdirectory to <ssl_dir> and execute shell command `for file in *.pem; do ln -s "$file" "$(openssl x509 -hash -noout -in "$file")".0; done` for instead.  
 mkdir test_dir/Player-Data
 cp XSCE_PATH/third_party/MP-SPDZ/ssl_dir/* test_dir/Player-Data/
 cd test_dir
