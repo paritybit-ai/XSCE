@@ -62,9 +62,9 @@ std::string ip;
 // psi example code  .Modified by wumingzi. 2022:07:14,Thursday,10:02:36.
 // OptAlg struct is used to pass parameters to different kinds of algorithms including psi and pir.
 // key parameters note below:
-// role:  spcify the node role type. 0 means server, 1 means client
-// dataFn:  spcify the data input file.
-// rltFn:  spcify the name of result file.
+// role:  specify the node role type. 0 means server, 1 means client
+// dataFn:  specify the data input file.
+// rltFn:  specify the name of result file.
 // ipVec: holds the ip address of each party, the ip number of ipVec should be the same as party number.
 // portVec: holds the port number of each party,the port number of portVec should be the same as party number
 // ipVec and portVec should be the same order for both server and client parties.
@@ -78,9 +78,9 @@ std::string ip;
 // thdIdex: indicates the index of current thread;
 // commonSeed: 1st part of 128-bit common random seed;
 // commonSeed1: 2nd part of 128-bit common random seed;
-// common seed shsould be the same for both server and client parties.
-// inertalSeed: 1st part of 128-bit internal random seed;
-// inertalSeed1: 2nd part of 128-bit internal random seed;
+// common seed should be the same for both server and client parties.
+// internalSeed: 1st part of 128-bit internal random seed;
+// internalSeed1: 2nd part of 128-bit internal random seed;
 // internal seed should be different between  server and client parties.
 
 //psi alg related parameters listed below:
