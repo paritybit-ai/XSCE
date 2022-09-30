@@ -58,6 +58,7 @@ int main(int argc, char* argv[])
     // role:  specify the party(role) id.
     // input:  specify the spdz data input.
     // endpointlist_spdz:  specify the endpoint list for spdz.
+    // middle_prefix: specify the tmp input file.
     // output_file: output file.
     SPDZAlg spdzalg;
     spdzalg.input.clear();
@@ -94,7 +95,7 @@ int main(int argc, char* argv[])
         return -1;
     }
     EndPoint_SPDZ ep_spdz;
-//    spdzalg.middle_prefix = "input";
+    spdzalg.middle_prefix = "input";
     spdzalg.output_file = "output";
 
     uniform_real_distribution<double> u(0,1);
