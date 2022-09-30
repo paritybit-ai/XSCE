@@ -1,0 +1,41 @@
+from Compiler import mpc_math, util
+from Compiler.types import *
+
+sfix.set_precision(16, 64)
+print_float_precision(8)
+
+def test_variance(x1, x2, x3, size=3):
+    sum=x1[:]+x2[:]+x3[:]
+    AverSum=sum[1]/sum[0]
+    AverSsum=sum[2]/sum[0]
+    SquAverSum=AverSum*AverSum
+    variance=AverSsum-SquAverSum
+
+    #print_ln('add result=%s, %s, %s', sum[0].reveal(),sum[1].reveal(), sum[2].reveal())
+    #print_ln('AverSum is %s', AverSum.reveal())
+    #print_ln('AverSsum is %s', AverSsum.reveal())
+    #print_ln('SquVerSum is %s', SquAverSum.reveal())
+    print_ln('variance is: %s', variance.reveal())
+
+def test_upper(loop):
+    x1 = Array(loop, sfix)
+    x2 = Array(loop, sfix)
+    x3 = Array(loop, sfix)
+    @for_range(loop)
+    def _(i):
+        x1[i] = sfix.get_input_from(0)
+        x2[i] = sfix.get_input_from(1)
+        x3[i] = sfix.get_input_from(2)
+
+    #print_ln('x1 =%s', x1.reveal())
+    #print_ln('x2 =%s', x2.reveal())
+    #print_ln('x3 =%s', x3.reveal())
+
+    test_variance(x1, x2, x3, 3)
+
+
+loop = 3
+test_upper(loop)
+
+
+

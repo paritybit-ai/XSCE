@@ -1,0 +1,204 @@
+from util import if_else
+from Compiler import types
+from Compiler import library
+
+#program.use_trunc_pr = True
+#program.use_split(3)
+program.use_edabit(True)
+sfix.set_precision(16, 31)
+#print_float_precision(8)
+
+def lowerBound(value, array, size):
+    len = size
+    first = MemValue(0)
+    re = MemValue(0)
+    @while_do(lambda len: len>0, len)
+    def _(i):
+        half=i>>1
+        middle=first +half
+        @if_e((value >array[middle]).reveal())
+        def _():
+            first.write(middle + 1)
+            re.write(i-half-1)
+        @else_
+        def _():
+            re.write(half)
+        return re.read()
+    return first
+
+
+def upperBound(value, array, size):
+    len = size
+    first = MemValue(0)
+    re = MemValue(0)
+    @while_do(lambda len: len>0, len)
+    def _(i):
+        half=i>>1
+        middle=first +half
+        @if_e((value >=array[middle]).reveal())
+        def _():
+            first.write(middle + 1)
+            re.write(i-half-1)
+        @else_
+        def _():
+            re.write(half)
+        return re.read()
+    return first
+
+
+
+def searchArray(arrayA, arrayB, arrayC, sizeA, sizeB, sizeC, k):
+    
+    len=sizeA 
+    begin=MemValue(0)
+    re=MemValue(0)
+    ini=sfix(-1)
+    find=MemValue(ini)
+    
+    @while_do(lambda len: len>0, len)
+    def _(i):
+        
+        smaller_count =0
+        smaller_right_count =0
+           
+        half=i>>1
+        mid = begin+half
+        midval = arrayA[mid] 
+
+        posA= 0
+        posA_right = 0
+
+        posB= 0
+        posB_right = 0
+
+        posC= 0
+        posC_right = 0        
+
+           
+        posA = lowerBound(midval, arrayA, sizeA)
+        posA_right=upperBound(midval ,arrayA, sizeA)
+        
+
+        posB=lowerBound(midval, arrayB, sizeB)
+        posB_right= upperBound(midval ,arrayB, sizeB)
+
+        posC= lowerBound(midval, arrayC, sizeC)
+        posC_right= upperBound(midval, arrayC, sizeC)
+	
+        smaller_count=posA+posB+posC
+        smaller_right_count=posA_right+posB_right+posC_right
+      
+        #print_ln('smaller_count value is %s', smaller_count.reveal())
+        #print_ln('smaller_rigth_count value is %s', smaller_right_count.reveal())
+
+        @if_ (smaller_count <= k)
+        def _():
+            @if_ (k < smaller_right_count)
+            def _():
+                find.write(midval)
+                #print_ln("find !!!!!")
+                break_loop()
+     
+        
+        @if_e (smaller_count > k)
+        def _():
+            #print_ln('searching 1 ....')
+            re.write(half)
+        @else_
+        def _():
+            #print_ln('searching 2 ....')
+            begin.write(mid+1)
+            re.write(i-half-1)
+
+        return re.read()
+ 
+    return find.read()
+
+def findPosValue(arrayA, arrayB, arrayC, sizeA, sizeB, sizeC, k):
+
+    ini=sfix(-1)
+    posValue=MemValue(ini)
+
+    kValue=searchArray(arrayA, arrayB, arrayC, sizeA, sizeB, sizeC, k)
+    posValue.write(kValue)
+
+    @if_ (posValue.read().reveal()==-1)
+    def _():
+        kValue=searchArray(arrayB, arrayA, arrayC, sizeB, sizeA, sizeC, k)
+        posValue.write(kValue)
+
+        @if_ (posValue.read().reveal()==-1)
+        def _():
+            kValue=searchArray(arrayC, arrayA, arrayB, sizeC, sizeA, sizeB, k)
+            posValue.write(kValue)
+
+    return posValue.read()
+
+
+def findMedian(arrayA, arrayB, arrayC, sizeA, sizeB, sizeC):
+    
+    ini=sfix(-1)
+    median=MemValue(ini)
+    count=sizeA+sizeB+sizeC
+    medianPos = count >> 1
+    target = findPosValue(arrayA, arrayB, arrayC, sizeA, sizeB, sizeC, medianPos)
+    median.write(target)
+
+    @if_ (0 == (count&1))
+    def _():
+        other=findPosValue(arrayA, arrayB, arrayC, sizeA, sizeB, sizeC, medianPos-1)
+        all=other+median
+        all /= 2.0
+        median.write(all)
+    return median.read().reveal()
+
+
+
+def test(sizeA, sizeB, sizeC, true_size):
+
+    A = Array(sizeA, sfix)
+    B = Array(sizeB, sfix)
+    C = Array(sizeC, sfix)
+
+    @if_e(sizeA>true_size)
+    def _():
+        @for_range(true_size)
+        def _(j):
+            A[j] = sfix.get_input_from(0)
+            B[j] = sfix.get_input_from(1)
+            C[j] = sfix.get_input_from(2)
+    @else_
+    def _():
+        print_ln("Array size is smaller than your input data size! ")
+        print_ln("please set a larger array size and re-compile your .mpc file!")
+
+
+    #B = Array(sizeB, sfix)
+    #@if_(sizeB>true_size)
+    #def _():
+        #for_range(true_size)
+        #def _(j):
+            #B[j] = sfix.get_input_from(1)
+
+    #C = Array(sizeC, sfix)
+    #@if_(sizeC>true_size)
+    #def _():
+        #@for_range(true_size)
+        #def _(j):
+            #C[j] = sfix.get_input_from(2)
+ 
+    median= findMedian(A, B, C, true_size, true_size, true_size)
+    print_ln('median result is: %s', median)
+
+
+
+sizeA=20000000
+sizeB=20000000
+sizeC=20000000
+
+true_size = public_input()
+
+test(sizeA, sizeB, sizeC, true_size)
+
+
+

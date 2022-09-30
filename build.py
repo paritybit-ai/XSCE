@@ -16,6 +16,7 @@ def submodule_update(submoddir) :
 def help():
 
     print(" libote \n\tlibOTe module.")
+    print(" spdz \n\tMP-SPDZ module.")
     print(" xsce  \n\txsce module.")
     print(" debug  \n\tdebug build.")
     print(" release  \n\trelease build, default.")
@@ -48,6 +49,17 @@ def copy_files(srcpath, dstpath, subdir, tail2, sudoflag):
                 os.system(SUDO + "mkdir -p " + local_path)
                 os.system(SUDO + "cp " + sub_path + " " + local_path)
 
+def check_str_in_file(filename, text):
+    
+    # 检测文件是否存在
+    if os.path.isfile(filename): 
+        f = open(filename, "r")
+        # 在文件中查找字符串
+        if text in f.read():
+            return True
+
+    return False
+
 def build_libOTe(argv):
 
     THIRD_LIB="third_party/libOTe_libs"
@@ -68,6 +80,65 @@ def build_libOTe(argv):
 
     return THIRD_LIB
 
+def build_spdz(argv):
+
+    if (not os.path.isdir("lib")):
+        os.system("mkdir " + "lib")
+    SPDZ="third_party/MP-SPDZ"
+    wd=os.getcwd()
+    submodule_update(SPDZ)
+    os.chdir(SPDZ)
+    if "clean" in argv:
+        os.system("make clean");
+    
+    if (False == os.path.isfile("local/lib/libmpir.a")):
+        os.system("make mpir")
+
+    if (False == os.path.isfile("local/lib/libmpir.so")):
+        os.system("make mpir")
+
+    if (False == os.path.isfile("local/lib/libmpirxx.a")):
+        os.system("make mpir")
+
+    if (False == os.path.isfile("local/lib/libmpirxx.so")):
+        os.system("make mpir")
+
+    os.system("make linux-machine-setup simde/simde")
+    
+    if (False == os.path.isfile("deps/SimpleOT/libsimpleot.a")):
+        os.system("make deps/SimpleOT/libsimpleot.a")
+
+    if (False == os.path.isfile("deps/SimplestOT_C/ref10/libSimplestOT.a")):
+        os.system("make deps/SimplestOT_C/ref10/libSimplestOT.a")
+    
+    # 检测Makefile释放已调整，如果未调整，则修改Makefile
+    makefile_flag = check_str_in_file("Makefile", "libMP-SPDZ.a: $(FHEOBJS) $(COMMONOBJS) $(PROCESSOR) $(GC) $(OT)")
+    if (True == makefile_flag):
+        makefile_flag = check_str_in_file("Makefile", "		$(AR) -csr $@ $^")
+
+    if (False == makefile_flag):
+        os.system("git restore Makefile")
+        os.system("echo 'libMP-SPDZ.a: $(FHEOBJS) $(COMMONOBJS) $(PROCESSOR) $(GC) $(OT)' >> Makefile")
+        os.system("echo '		$(AR) -csr $@ $^' >> Makefile")
+
+    # 检测CONFIG释放已调整，如果未调整，则修改CONFIG
+    config_flag = check_str_in_file("CONFIG", "USE_KOS = 1")
+    if (False == config_flag):
+        os.system("git restore CONFIG")
+        os.system("rm -f CONFIG.old")
+        os.system("mv CONFIG CONFIG.old")
+        os.system("sed 's/USE_KOS = 0/USE_KOS = 1/' CONFIG.old > CONFIG")
+
+    # 编译
+    os.system("make MY_CFLAGS+=\"-Werror=unused-parameter -I../libOTe_libs/include -Ilocal/include -L../libOTe_libs/lib -Llocal/lib\" libMP-SPDZ.a")
+    os.chdir(wd)
+
+    # 拷贝编译好的库文件
+    os.system("cp " + SPDZ + "/local/lib/*.a ./lib/")
+    os.system("cp " + SPDZ + "/libMP-SPDZ.a ./lib/")
+    os.system("cp " + SPDZ + "/deps/SimplestOT_C/ref10/libSimplestOT.a ./lib/libSimplestOT_spdz.a")
+    os.system("cp " + SPDZ + "/deps/SimpleOT/libsimpleot.a ./lib/libsimpleot.a")
+
 def build_clean(argv) :
 
     build_path="build"
@@ -83,6 +154,8 @@ def build_xsce(argv, THIRD_LIB):
     build_path="build"
     if (not os.path.isdir(build_path)):
         os.system("mkdir " + build_path)
+    if (not os.path.isdir("lib")):
+        os.system("mkdir " + "lib")
     
     #   设置cmake编译选项
     cmake_compile_arg = "cmake -S . -B " + build_path
@@ -149,6 +222,8 @@ def build_install(installpath, argv):
     os.system(SUDO + "cp lib/* " + installpath_lib)
     copy_files("./src", installpath_include, "", "h", sudoflag)
     copy_files("./src", installpath_include, "", "hpp", sudoflag)
+    copy_files("./third_party/MP-SPDZ", installpath+"/include/MP-SPDZ", "", "h", sudoflag)
+    copy_files("./third_party/MP-SPDZ", installpath+"/include/MP-SPDZ", "", "hpp", sudoflag)
    
 def build_docker(images):
     os.system("docker build -t " + images + " . ")
@@ -162,6 +237,13 @@ def build_setup(argv):
             os.system("rm -rf " + THIRD_LIB)
             os.system("rm -rf " + LIBOTE)
         submodule_update(LIBOTE)
+
+    THIRD_SPDZ="third_party/MP-SPDZ"
+    if "spdz" in argv :
+        if "clean" in argv :
+            os.system("rm -rf " + THIRD_SPDZ + "/*")
+            os.system("rm -rf " + THIRD_SPDZ + "/.git*")
+        submodule_update(THIRD_SPDZ)
 
 def main(projectName, argv):
 
@@ -182,6 +264,10 @@ def main(projectName, argv):
     if "libote" in argv :
         flag = True
         THIRD_LIB = build_libOTe(argv)
+
+    if "spdz" in argv :
+        flag = True
+        build_spdz(argv)
 
     if "xsce" in argv :
         flag = True

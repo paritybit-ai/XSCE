@@ -1,0 +1,15 @@
+program.use_edabit(True)
+sfix.set_precision(16, 64)
+print_float_precision(8)
+
+size = public_input()
+threadnum = 16
+
+@for_range_multithread(threadnum, 1000, size)
+def _(i):
+    print_float_precision(8)
+    a = sfix.get_input_from(0)
+    b = sfix.get_input_from(1)
+    c = sfix.get_input_from(2)
+    result = a*b*c
+    print_ln("%s", result.reveal())

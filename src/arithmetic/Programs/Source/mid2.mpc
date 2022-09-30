@@ -1,0 +1,123 @@
+from util import if_else
+from Compiler import types
+from Compiler import library
+
+program.use_trunc_pr = True
+program.use_edabit(True)
+sfix.set_precision(16, 31)
+print_float_precision(8)
+
+def min(num1,num2):
+    num = MemValue(0)
+    @if_e(num1<num2)
+    def _():
+        num.write(num1)
+    @else_
+    def _():
+        num.write(num2)
+    return num
+
+def minValue(num1,num2):
+    num = sfix.MemValue(num1)
+    @if_e((num1<num2).reveal())
+    def _():
+        num.write(num1)
+    @else_
+    def _():
+        num.write(num2)
+    return num
+
+def maxValue(num1,num2):
+    num = sfix.MemValue(num1)
+    @if_e((num1<num2).reveal())
+    def _():
+        num.write(num2)
+    @else_
+    def _():
+        num.write(num1)
+    return num
+
+def findMedian(arrayA, arrayB, sizeA, sizeB):
+    k = regint.MemValue(sizeA)
+    index1,index2 = MemValue(0),MemValue(0)
+    num1,num2 = MemValue(arrayA[0]),MemValue(arrayA[0])
+    min = minValue(arrayA[0],arrayB[0])
+    max = maxValue(arrayA[sizeA-1],arrayB[sizeB-1])
+    left,right = MemValue(0),MemValue(k)
+    num_im1,num_i,num_jm1,num_j = MemValue(sfix(0)),MemValue(sfix(0)),MemValue(sfix(0)),MemValue(sfix(0))
+
+    @do_while
+    def getKth():
+        i = (left+right) // 2
+        j = (sizeA+sizeB+1) // 2 - i
+
+        @if_e(i==0)
+        def _():
+            num_im1.write(min)
+        @else_
+        def _():
+            num_im1.write(arrayA[i-1])
+
+        @if_e(i==sizeA)
+        def _():
+            num_i.write(max)
+        @else_
+        def _():
+            num_i.write(arrayA[i])
+
+        @if_e(j==0)
+        def _():
+            num_jm1.write(min)
+        @else_
+        def _():
+            num_jm1.write(arrayB[j-1])
+
+        @if_e(j==sizeB)
+        def _():
+            num_j.write(max)
+        @else_
+        def _():
+            num_j.write(arrayB[j])
+
+        @if_e((num_im1.read()<=num_j.read()).reveal())
+        def _():
+            num1.write(maxValue(num_im1.read(),num_jm1.read()))
+            num2.write(minValue(num_i.read(),num_j.read()))
+            left.write(i+1)
+        @else_
+        def _():
+            right.write(i-1)
+        return (left<=right)
+
+    #print_ln("num1: %s", num1.reveal())
+    #print_ln("num2: %s", num2.reveal())
+    median = (num1+num2)/2
+    return median.reveal()
+
+def test(sizeA, sizeB, true_size):
+    A = Array(sizeA, sfix)
+    B = Array(sizeB, sfix)
+    @if_e(sizeA>true_size)
+    def _():
+        @for_range(true_size)
+        def _(j):
+            A[j] = sfix.get_input_from(0)
+            B[j] = sfix.get_input_from(1)
+    @else_
+    def _():
+        print_ln("Array size is smaller than your input data size! ")
+        print_ln("please set a larger array size and re-compile your .mpc file!")
+ 
+    median= findMedian(A, B, true_size, true_size)
+    print_ln('median result is: %s', median)
+
+sizeA=20000000
+sizeB=20000000
+sizeC=20000000
+
+true_size = public_input()
+
+test(sizeA, sizeB, true_size)
+
+
+

@@ -1,7 +1,10 @@
 FROM ubuntu:20.04 as  baseenv
 
 RUN apt-get update \
-    && apt-get install -y vim automake build-essential git wget libssl-dev libtool python3 python3-pip >/dev/null \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y vim automake build-essential git wget libssl-dev libtool python3 python3-pip texinfo yasm >/dev/null \
+    && echo "tzdata tzdata/Areas select Asia"> ~/preseed.txt \
+    && echo "tzdata tzdata/Zones/Asia select Shanghai" >> ~/preseed.txt \
+    && debconf-set-selections ~/preseed.txt \
     && apt-get clean
 
 #install cmake
@@ -17,7 +20,7 @@ RUN mkdir -p /thirdparty/cmake-src \
 FROM baseenv as builder
 
 COPY ./ /xsce/
-RUN cd /xsce && ls && ./build.py libote xsce clean && ./build.py install=/opt/xsce_install
+RUN cd /xsce && ls && ./build.py libote spdz xsce clean && ./build.py install=/opt/xsce_install
 
 FROM baseenv as machine
 

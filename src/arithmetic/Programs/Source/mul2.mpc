@@ -1,0 +1,12 @@
+program.use_edabit(True)
+sfix.set_precision(16, 64)
+print_float_precision(8)
+
+size = public_input()
+
+@for_range(size)
+def _(i):
+    a = sfix.get_input_from(0)
+    b = sfix.get_input_from(1)
+    result = (a*b).reveal()
+    print_ln("%s", result)
