@@ -282,6 +282,10 @@ int resolveOutput(SPDZAlg *spdzalg, bool store_rlt_vec)
  */
 int runSPDZComputation(SPDZAlg *spdzalg, int parties, int machine_type=EMACHINETYPE_NONE)
 {
+    if (0 == spdzalg->middle_prefix.size())
+    {
+        spdzalg->middle_prefix = "tmp";
+    }
     spdzalg->pub_input_file = "Programs/Public-Input/" + spdzalg->alg_index_str;
     ofstream ofile;
     ofile.open(spdzalg->pub_input_file, fstream::out);
@@ -316,6 +320,10 @@ int runSPDZComputation(SPDZAlg *spdzalg, int parties, int machine_type=EMACHINET
  */
 int runSPDZComputation(SPDZAlg *spdzalg, size_t data_size, double sum, double square_sum, int parties)
 {
+    if (0 == spdzalg->middle_prefix.size())
+    {
+        spdzalg->middle_prefix = "tmp";
+    }
     if (1 == spdzalg->input_mode)
     {
         return runSPDZComputation_mem(spdzalg, data_size, sum, square_sum, parties);

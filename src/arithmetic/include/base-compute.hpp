@@ -182,10 +182,6 @@ int runSPDZMachine(SPDZAlg *spdzalg, int parties, int machine_type=EMACHINETYPE_
     string strport = std::to_string(spdzalg->endpoint_spdz_vec[0].port);
     argv[argc++] = strport.c_str();
 
-    if (0 == spdzalg->middle_prefix.size())
-    {
-        spdzalg->middle_prefix = "tmp";
-    }
     argv[argc++] = "-IF";
     std::string middlefilename = spdzalg->middle_prefix;
     argv[argc++] = middlefilename.c_str();
