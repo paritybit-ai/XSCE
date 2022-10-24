@@ -115,6 +115,19 @@ PIR 算法实现原理如下:
 - 3方中位数(`给定三个数组，寻找中位数`)
 - 3方方差(`给定三个数组，计算方差`)
 
+两方算法提供如下接口：
+- `EXPORT_SYM int runAdd2(SPDZAlg *spdzalg);  //两方加法`
+- `EXPORT_SYM int runMul2(SPDZAlg *spdzalg);  //两方乘法`
+- `EXPORT_SYM int runCmp2(SPDZAlg *spdzalg);  //两方比较`
+- `EXPORT_SYM int runVar2(SPDZAlg *spdzalg);  //两方方差`
+- `EXPORT_SYM int runMid2(SPDZAlg *spdzalg);  //两方中位数`
+
+三方算法提供如下接口：
+- `EXPORT_SYM int runAdd3(SPDZAlg *spdzalg);  //三方加法`
+- `EXPORT_SYM int runMul3(SPDZAlg *spdzalg);  //三方乘法`
+- `EXPORT_SYM int runVar3(SPDZAlg *spdzalg);  //三方方差`
+- `EXPORT_SYM int runMid3(SPDZAlg *spdzalg);  //三方中位数`
+
 更多算法将在后续进行支持。
 
 # 开源协议
