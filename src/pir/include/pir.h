@@ -247,7 +247,10 @@ namespace xscePirAlg
 
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num);
     int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info);
-
+    // for pir alg support psi mode  .Modified by wumingzi. 2022:12:17,Saturday,14:21:06.
+    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info);
+    //   .Modification over by wumingzi. 2022:12:17,Saturday,14:21:20.
+    
     int64_t pirPoolSplitBucket(OptAlg *optAlg, PirAlgInfo *alg_info);
     int64_t pirBucketRange(PirAlgInfo *alg_info, uint8_t **range_buf, int64_t *bucket_num);
     int64_t pirBucketFilter(OptAlg *optAlg, PirAlgInfo *alg_info);
