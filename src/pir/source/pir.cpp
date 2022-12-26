@@ -632,19 +632,28 @@ namespace xscePirAlg
         //   .Modification over by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:26.
 
         // free buf mem  .Modified by wumingzi. 2022:09:08,Thursday,15:50:10.
-        //. save pri alg result for client only.
+        //. save pir alg result for client only.
+        int pir_type = 0;
         if (!isServer)
         {
             savePirRlt2StrVec(&pir_rlt, data_vec);
             savePsiDataRlt2Vec(&data_info, psi_cli_rlt);
             LOG_INFO("finla pir rlt. data_vec size=" << data_vec.size() << ",psi_cli_rlt size=" << psi_cli_rlt.size() << ",psi_srv_rlt size=" << psi_srv_rlt.size());
-            sendInt64Mtx(optAlg, pir_srv_rlt);
+            if (pir_type != optAlg->type)
+            {
+                LOG_INFO("not pir mode,client send psi rlt to server");
+                sendInt64Mtx(optAlg, pir_srv_rlt);
+            }
         }
         else
         { //srv rcv psi rlt index
             pir_srv_rlt.resize(0);
-            rcvInt64Mtx(optAlg, pir_srv_rlt);
-            savePsiDataRlt2Vec(&data_info, pir_srv_rlt, psi_srv_rlt); //psi_srv_rlt is not used for client party.
+            if (pir_type != optAlg->type)
+            {
+                LOG_INFO("not pir mode,server begin to rcv psi rlt from server");
+                rcvInt64Mtx(optAlg, pir_srv_rlt);
+                savePsiDataRlt2Vec(&data_info, pir_srv_rlt, psi_srv_rlt); //psi_srv_rlt is not used for client party.
+            }
         }
 
         freePirDataInfo(&data_info);
