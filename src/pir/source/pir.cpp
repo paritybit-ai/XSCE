@@ -489,7 +489,7 @@ namespace xscePirAlg
             }
         }
 
-        splitIdBufBucket(&data_info);
+        auto split_rlt = splitIdBufBucket(&data_info);
         pool_num = data_info.bucket_pool_num;
         LOG_INFO("pool_num=" << pool_num);
 
@@ -505,9 +505,21 @@ namespace xscePirAlg
         //here need to use multithread to speed up performance
         std::vector<int64_t> matched_pool_index;
         int64_t matched_pool_num = 0;
+        int64_t real_pool_num = data_info.bucket_pool_vol.size();
         for (int64_t i = 0; i < pool_num; i++)
         {
-            auto cur_pool_vol = data_info.bucket_pool_vol.at(i);
+
+            // fix pool num bug  .Modified by wumingzi. 2022:12:27,Tuesday,09:20:34.
+            int cur_pool_vol = 0;
+            if (i < real_pool_num)
+            {
+                cur_pool_vol = data_info.bucket_pool_vol.at(i);
+            }
+            else
+            {
+                cur_pool_vol = 0;
+            }
+
             bool zero_vol = checkLocalRmtNumNonZero(optAlg, cur_pool_vol, i);
             showBlk(3, 3);
             LOG_INFO("pir pool  [" << i << "] check remote id_num is valid or not.");
