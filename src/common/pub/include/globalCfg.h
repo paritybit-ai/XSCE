@@ -401,7 +401,7 @@ typedef struct _OptAlg
     std::string endpointlist_spdz;
     std::string endpointlist_spdz_gw;
 
-    std::shared_ptr<xsce_ose_taskstatus::TaskStatus> task_status = nullptr;
+    xsce_ose_taskstatus::TaskStatus task_status;
 } OptAlg;
 
 typedef struct _LogSaveOpt

@@ -202,10 +202,10 @@ namespace xscePirAlg
         pool_num = data_info.bucket_pool_num;
         LOG_INFO("pool_num=" << pool_num);
 
-        if(optAlg->task_status != nullptr)
-        {
-            optAlg->task_status->SetBucketNum(pool_num);
-        }
+        // if(optAlg->task_status != nullptr)
+        // {
+        optAlg->task_status.SetBucketNum(pool_num);
+        // }
 
         //here to run pir alg in each pool
         std::vector<std::vector<std::string> > pir_rlt(pool_num);
@@ -737,11 +737,11 @@ namespace xscePirAlg
             optAlg->thdOver = true;
             return rlt;
         }
-
-        if(optAlg->task_status != nullptr)
-        {
-            optAlg->task_status->SetProgressPerBucket(10,pool_num);
-        }
+            //百分10
+        // if(optAlg->task_status != nullptr)
+        // {
+        optAlg->task_status.SetProgressPerBucket(10,pool_num);
+        // }
 
         LOG_INFO("begin to run pir alg in bucket pool[" << pool_num << "].");
 
@@ -850,10 +850,11 @@ namespace xscePirAlg
         {
             LOG_INFO("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         }
-        if(optAlg->task_status != nullptr)
-        {
-            optAlg->task_status->SetProgressPerBucket(100,pool_num);
-        }
+        //百分100
+        // if(optAlg->task_status != nullptr)
+        // {
+        optAlg->task_status.SetProgressPerBucket(100,pool_num);
+        // }
         optAlg->thdOver = true;
         return rlt;
     }

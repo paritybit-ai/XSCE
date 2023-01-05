@@ -69,7 +69,7 @@ public:
     void RgeisterSetCurFunc(SetCurFuncCallBack fun){
         SetCurFunc_ = fun;
     }
-private:
+public:
     NonParaFunc SetCurFuncMeta_;
     NonParaFunc SetStop_;
     IsStopCallBack IsStop_;
