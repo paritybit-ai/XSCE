@@ -12,21 +12,71 @@
 // #include "third_party/xsce-toolkits/xlog/include/loginterface.h"
 
 
-
-namespace xsce_ose
+// typedef std::function<void()> non_para_func;
+namespace xsce_ose_taskstatus
 {
 class TaskStatus {
+    
+    using NonParaFunc = std::function<void()>;
+    using SetCurFuncCallBack = std::function<void (const std::string& cur_func)>;
+    using SetProgressPerBucketCallBack = std::function<void (uint32_t progress_percentage, int bucket_id)>;
+    using SetBucketNumCallBack = std::function<void (int bucket_pool_num1)>;
+    using IsStopCallBack = std::function<bool ()>;
 public:
-    TaskStatus();
-    ~TaskStatus();
+    
     void SetCurFuncMeta(){
-        SetCurFuncMeta_();
+        if(SetCurFuncMeta_){
+            SetCurFuncMeta_();
+        }
     };
-    std::function<void ()> SetCurFuncMeta_;
+    void SetStop(){
+        if(SetStop_){
+            SetStop_();
+        }
+    };
+    void IsStop(){
+        if(IsStop_){
+            IsStop_();
+        }
+    };   
+    void SetProgressPerBucket(uint32_t progress_percentage, int bucket_id){
+        if(SetProgressPerBucket_){
+            SetProgressPerBucket_(progress_percentage, bucket_id);
+        }
+    };
 
+    void SetBucketNum(int bucket_pool_num1){
+        if(SetBucketNum_){
+            SetBucketNum_(bucket_pool_num1);
+        }
+    }; 
 
-std::shared_ptr<xsce::TaskStatus> (*GetTaskStatus)(const std::string& task_id);
-std::function<std::shared_ptr<xsce::TaskStatus>(const std::string&)> GetTaskStatus;
+    void RgeisterSetCurFuncMeta(NonParaFunc fun){
+        SetCurFuncMeta_ = fun;
+    }
+    void RgeisterSetStop(NonParaFunc fun){
+        SetStop_ = fun;
+    }
+    void RgeisterIsStop(IsStopCallBack fun){
+        IsStop_ = fun;
+    }
+    void RgeisterSetProgressPerBucket(SetProgressPerBucketCallBack fun){
+        SetProgressPerBucket_ = fun;
+    }
+    void RgeisterSetBucketNum(SetBucketNumCallBack fun){
+        SetBucketNum_ = fun;
+    }
+    void RgeisterSetCurFunc(SetCurFuncCallBack fun){
+        SetCurFunc_ = fun;
+    }
+private:
+    NonParaFunc SetCurFuncMeta_;
+    NonParaFunc SetStop_;
+    IsStopCallBack IsStop_;
+    SetCurFuncCallBack SetCurFunc_;
+    SetProgressPerBucketCallBack SetProgressPerBucket_;
+    SetBucketNumCallBack SetBucketNum_;
 
+};
 
 }
