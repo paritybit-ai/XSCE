@@ -737,7 +737,7 @@ namespace xscePirAlg
             return rlt;
         }
         
-        optAlg->task_status.SetProgressPerBucket(10,pool_num);
+        optAlg->task_status.SetProgressPerBucket(20,pool_num);
         if(optAlg->task_status.IsStop()){return rlt;};
 
         LOG_INFO("begin to run pir alg in bucket pool[" << pool_num << "].");
@@ -829,7 +829,7 @@ namespace xscePirAlg
             pirPoolSplitBucket(optAlg, &alg);
         }
 
-        optAlg->task_status.SetProgressPerBucket(60,pool_num);
+        optAlg->task_status.SetProgressPerBucket(70,pool_num);
         if(optAlg->task_status.IsStop()){return rlt;};
 
         // add psi type support  .Modified by wumingzi. 2022:12:17,Saturday,14:18:00.
