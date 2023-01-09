@@ -34,9 +34,12 @@ public:
             SetStop_();
         }
     };
-    void IsStop(){
+    bool IsStop(){
         if(IsStop_){
-            IsStop_();
+            return IsStop_();
+        }
+        else{
+            return false;
         }
     };   
     void SetProgressPerBucket(uint32_t progress_percentage, int bucket_id){

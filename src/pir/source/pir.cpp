@@ -202,10 +202,7 @@ namespace xscePirAlg
         pool_num = data_info.bucket_pool_num;
         LOG_INFO("pool_num=" << pool_num);
 
-        // if(optAlg->task_status != nullptr)
-        // {
-        optAlg->task_status.SetBucketNum(pool_num);
-        // }
+        
 
         //here to run pir alg in each pool
         std::vector<std::vector<std::string> > pir_rlt(pool_num);
@@ -238,6 +235,8 @@ namespace xscePirAlg
         }
 
         LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
+        optAlg->task_status.SetBucketNum(matched_pool_num);
+        
         // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
         int max_thread_num = 16;
         int thread_num = optAlg->thdNum;
@@ -737,11 +736,9 @@ namespace xscePirAlg
             optAlg->thdOver = true;
             return rlt;
         }
-            //百分10
-        // if(optAlg->task_status != nullptr)
-        // {
+        
         optAlg->task_status.SetProgressPerBucket(10,pool_num);
-        // }
+        if(optAlg->task_status.IsStop()){return rlt;};
 
         LOG_INFO("begin to run pir alg in bucket pool[" << pool_num << "].");
 
@@ -796,6 +793,9 @@ namespace xscePirAlg
             }
         }
 
+        optAlg->task_status.SetProgressPerBucket(40,pool_num);
+        if(optAlg->task_status.IsStop()){return rlt;};
+        
         //maybe need to coordinate bucket index to speedup alg performance.
 
         //here srv&cli both have id_str/data row. begin to call basic pir alg.
@@ -829,6 +829,9 @@ namespace xscePirAlg
             pirPoolSplitBucket(optAlg, &alg);
         }
 
+        optAlg->task_status.SetProgressPerBucket(60,pool_num);
+        if(optAlg->task_status.IsStop()){return rlt;};
+
         // add psi type support  .Modified by wumingzi. 2022:12:17,Saturday,14:18:00.
         //for psi type, bucket pool process is the same as pir,but client doesn't get data from server
         int psi_type = 2000;
@@ -850,11 +853,10 @@ namespace xscePirAlg
         {
             LOG_INFO("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         }
-        //百分100
-        // if(optAlg->task_status != nullptr)
-        // {
+        
         optAlg->task_status.SetProgressPerBucket(100,pool_num);
-        // }
+        if(optAlg->task_status.IsStop()){return rlt;};
+    
         optAlg->thdOver = true;
         return rlt;
     }
