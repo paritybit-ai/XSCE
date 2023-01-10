@@ -212,6 +212,8 @@ namespace util
         optDst->groupNum = optSrc->groupNum;
         optDst->comptMode = optSrc->comptMode;
 
+        optDst->task_status = optSrc->task_status;
+
         return rlt;
     }
 

@@ -46,6 +46,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <thread>
+#include "toolkits/util/include/task_status.h"
 
 namespace xsce_ose {
 // Define general function error codde....  Modified by wumingzi on 2021/4/26 5:17 pm.
@@ -399,6 +400,8 @@ typedef struct _OptAlg
     std::string gateway_cert_path;              //  cert path，valid when networkmode=2
     std::string endpointlist_spdz;
     std::string endpointlist_spdz_gw;
+
+    xsce_ose_taskstatus::TaskStatus task_status;
 } OptAlg;
 
 typedef struct _LogSaveOpt

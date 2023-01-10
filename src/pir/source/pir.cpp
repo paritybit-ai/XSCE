@@ -28,7 +28,7 @@
 #include "toolkits/util/include/xlog.h"
 #include "common/pub/include/util.h"
 #include "PSI/include/psi.h"
-
+#include "toolkits/util/include/task_status.h"
 namespace xscePirAlg
 {
     using namespace std;
@@ -202,6 +202,8 @@ namespace xscePirAlg
         pool_num = data_info.bucket_pool_num;
         LOG_INFO("pool_num=" << pool_num);
 
+        
+
         //here to run pir alg in each pool
         std::vector<std::vector<std::string> > pir_rlt(pool_num);
         std::vector<std::vector<std::int64_t> > pir_cli_rlt(pool_num);
@@ -233,6 +235,8 @@ namespace xscePirAlg
         }
 
         LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
+        optAlg->task_status.SetBucketNum(matched_pool_num);
+        
         // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
         int max_thread_num = 16;
         int thread_num = optAlg->thdNum;
@@ -696,6 +700,7 @@ namespace xscePirAlg
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num)
     {
         int64_t rlt = -1;
+        
         optAlg->thdOver = false;
         if (nullptr == optAlg)
         {
@@ -731,6 +736,9 @@ namespace xscePirAlg
             optAlg->thdOver = true;
             return rlt;
         }
+        
+        optAlg->task_status.SetProgressPerBucket(20,pool_num);
+        if(optAlg->task_status.IsStop()){return rlt;};
 
         LOG_INFO("begin to run pir alg in bucket pool[" << pool_num << "].");
 
@@ -785,6 +793,9 @@ namespace xscePirAlg
             }
         }
 
+        optAlg->task_status.SetProgressPerBucket(40,pool_num);
+        if(optAlg->task_status.IsStop()){return rlt;};
+        
         //maybe need to coordinate bucket index to speedup alg performance.
 
         //here srv&cli both have id_str/data row. begin to call basic pir alg.
@@ -818,6 +829,9 @@ namespace xscePirAlg
             pirPoolSplitBucket(optAlg, &alg);
         }
 
+        optAlg->task_status.SetProgressPerBucket(70,pool_num);
+        if(optAlg->task_status.IsStop()){return rlt;};
+
         // add psi type support  .Modified by wumingzi. 2022:12:17,Saturday,14:18:00.
         //for psi type, bucket pool process is the same as pir,but client doesn't get data from server
         int psi_type = 2000;
@@ -839,7 +853,10 @@ namespace xscePirAlg
         {
             LOG_INFO("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         }
-
+        
+        optAlg->task_status.SetProgressPerBucket(100,pool_num);
+        if(optAlg->task_status.IsStop()){return rlt;};
+    
         optAlg->thdOver = true;
         return rlt;
     }
