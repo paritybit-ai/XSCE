@@ -235,6 +235,7 @@ namespace xscePirAlg
         }
 
         LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
+        
         optAlg->task_status.SetBucketNum(matched_pool_num);
         
         // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
@@ -540,6 +541,9 @@ namespace xscePirAlg
         }
 
         LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
+        
+        optAlg->task_status.SetBucketNum(matched_pool_num);
+        
         // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
         int max_thread_num = 16;
         int thread_num = optAlg->thdNum;
