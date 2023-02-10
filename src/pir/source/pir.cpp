@@ -742,7 +742,10 @@ namespace xscePirAlg
         }
         
         optAlg->task_status.SetProgressPerBucket(20,pool_num);
-        if(optAlg->task_status.IsStop()){return rlt;};
+        if(optAlg->task_status.IsStop()){
+            LOG_ERROR("task is stop, reason:unknown.");
+            return rlt;
+        };
 
         LOG_INFO("begin to run pir alg in bucket pool[" << pool_num << "].");
 
@@ -798,7 +801,10 @@ namespace xscePirAlg
         }
 
         optAlg->task_status.SetProgressPerBucket(40,pool_num);
-        if(optAlg->task_status.IsStop()){return rlt;};
+        if(optAlg->task_status.IsStop()){
+            LOG_ERROR("task is stop, reason:unknown.");
+            return rlt;
+        };
         
         //maybe need to coordinate bucket index to speedup alg performance.
 
@@ -834,7 +840,10 @@ namespace xscePirAlg
         }
 
         optAlg->task_status.SetProgressPerBucket(70,pool_num);
-        if(optAlg->task_status.IsStop()){return rlt;};
+        if(optAlg->task_status.IsStop()){
+            LOG_ERROR("task is stop, reason:unknown.");
+            return rlt;
+        };
 
         // add psi type support  .Modified by wumingzi. 2022:12:17,Saturday,14:18:00.
         //for psi type, bucket pool process is the same as pir,but client doesn't get data from server
@@ -859,7 +868,10 @@ namespace xscePirAlg
         }
         
         optAlg->task_status.SetProgressPerBucket(100,pool_num);
-        if(optAlg->task_status.IsStop()){return rlt;};
+        if(optAlg->task_status.IsStop()){
+            LOG_ERROR("task is stop, reason:unknown.");
+            return rlt;
+        };
     
         optAlg->thdOver = true;
         return rlt;
