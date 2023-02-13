@@ -703,6 +703,10 @@ namespace xscePirAlg
     //   .Modification over by wumingzi. 2022:09:08,Thursday,15:47:03.
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num)
     {
+        std::unique_ptr<int, std::function<void(int *)>> guard(new int(1), [optAlg](int* x){
+            delete x;
+            optAlg->thdOver = true;
+        });
         int64_t rlt = -1;
         
         optAlg->thdOver = false;
