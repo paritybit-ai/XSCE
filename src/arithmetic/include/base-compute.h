@@ -124,6 +124,7 @@ EXPORT_SYM int runMul2(SPDZAlg *spdzalg);
 EXPORT_SYM int runCmp2(SPDZAlg *spdzalg);
 EXPORT_SYM int runVar2(SPDZAlg *spdzalg);
 EXPORT_SYM int runMid2(SPDZAlg *spdzalg);
+EXPORT_SYM int runInnerProd2(SPDZAlg *spdzAlg);
 
 // three-party computation
 EXPORT_SYM int runAdd3(SPDZAlg *spdzalg);

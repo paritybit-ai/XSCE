@@ -534,6 +534,18 @@ int runVar2(SPDZAlg *spdzalg)
 }
 
 /**
+ * @brief 2-party inner-product(Given two arrays, to compute the inner product)
+ *
+ * @param spdzalg
+ * @return int
+ */
+int runInnerProd2(SPDZAlg *spdzAlg)
+{
+    spdzAlg->alg_index_str = "prodot2";
+    return runSPDZComputation(spdzAlg, 2);
+}
+
+/**
  * @brief 3-party addition(a+b+c)
  *
  * @param spdzalg

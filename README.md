@@ -110,6 +110,7 @@ The following algorithms are supported:
 - 2-party comparison(`a<b`)
 - 2-party median-value(`Given two arrays, to find the median-value`)
 - 2-party variance(`Given two arrays, to compute the variance`)
+- 2-party inner product(`Given two arrays, to compute the inner product`)
 - 3-party addition(`a+b+c`)
 - 3-party multiplication(`a*b*c`)
 - 3-party median-value(`Given three arrays, to find the median-value`)
@@ -121,6 +122,7 @@ The 2-party algorithms are as follows：
 - `EXPORT_SYM int runCmp2(SPDZAlg *spdzalg);  //2-party comparison`
 - `EXPORT_SYM int runVar2(SPDZAlg *spdzalg);  //2-party variance`
 - `EXPORT_SYM int runMid2(SPDZAlg *spdzalg);  //2-party median-value`
+- `EXPORT_SYM int runInnerProd2(SPDZAlg *spdzAlg); //2-party inner-product`
 
 The 3-party algorithms are as follows：
 - `EXPORT_SYM int runAdd3(SPDZAlg *spdzalg);  //3-party addition`

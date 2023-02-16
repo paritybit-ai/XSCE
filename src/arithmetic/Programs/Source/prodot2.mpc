@@ -1,0 +1,16 @@
+program.use_trunc_pr = True
+program.use_edabit(True)
+sfix.set_precision(16, 40)
+print_float_precision(8)
+
+def prodot(size):
+    sum = MemValue(sfix(0))
+    @for_range(size)
+    def f(i):
+        a = sfix.get_input_from(0)
+        b = sfix.get_input_from(1)
+        sum.write(sum+a*b)
+    print_ln('%s', sum.reveal())
+
+size = public_input()
+prodot(size)
