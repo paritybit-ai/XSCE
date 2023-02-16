@@ -42,7 +42,7 @@ void Help()
     LOG_INFO("-c    count of parties");
     LOG_INFO("-r    role number of party");
     LOG_INFO("-p    port of number 0, the format is ip:port");
-    LOG_INFO("add2  the circuit file, include: add2、mul2、cmp2、var2、mid2、add3、mul3、var3、mid3");
+    LOG_INFO("add2  the circuit file, include: add2、mul2、cmp2、var2、mid2、prodot2、add3、mul3、var3、mid3");
     LOG_INFO("************************************");
 }
 
@@ -126,6 +126,10 @@ int main(int argc, char* argv[])
     else if (circuit_file == "mid2")
     {
         runMid2(&spdzalg);
+    }
+    else if (circuit_file == "prodot2")
+    {
+        runInnerProd2(&spdzalg);
     }
     else if (circuit_file == "add3")
     {

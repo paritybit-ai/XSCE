@@ -110,6 +110,7 @@ PIR 算法实现原理如下:
 - 2方比较(`a<b`)
 - 2方中位数(`给定两个数组，寻找中位数`)
 - 2方方差(`给定两个数组，计算方差`)
+- 2方内积(`给定两个数组，计算内积`)
 - 3方加法(`a+b+c`)
 - 3方乘法(`a*b*c`)
 - 3方中位数(`给定三个数组，寻找中位数`)
@@ -121,6 +122,7 @@ PIR 算法实现原理如下:
 - `EXPORT_SYM int runCmp2(SPDZAlg *spdzalg);  //两方比较`
 - `EXPORT_SYM int runVar2(SPDZAlg *spdzalg);  //两方方差`
 - `EXPORT_SYM int runMid2(SPDZAlg *spdzalg);  //两方中位数`
+- `EXPORT_SYM int runInnerProd2(SPDZAlg *spdzAlg); //两方内积`
 
 三方算法提供如下接口：
 - `EXPORT_SYM int runAdd3(SPDZAlg *spdzalg);  //三方加法`
