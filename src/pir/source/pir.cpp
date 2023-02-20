@@ -747,7 +747,7 @@ namespace xscePirAlg
         
         optAlg->task_status.SetProgressPerBucket(20,pool_num);
         if(optAlg->task_status.IsStop()){
-            LOG_ERROR("task is stop, reason:unknown.");
+            LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
 
@@ -806,7 +806,7 @@ namespace xscePirAlg
 
         optAlg->task_status.SetProgressPerBucket(40,pool_num);
         if(optAlg->task_status.IsStop()){
-            LOG_ERROR("task is stop, reason:unknown.");
+            LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
         
@@ -845,7 +845,7 @@ namespace xscePirAlg
 
         optAlg->task_status.SetProgressPerBucket(70,pool_num);
         if(optAlg->task_status.IsStop()){
-            LOG_ERROR("task is stop, reason:unknown.");
+            LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
 
@@ -873,7 +873,7 @@ namespace xscePirAlg
         
         optAlg->task_status.SetProgressPerBucket(100,pool_num);
         if(optAlg->task_status.IsStop()){
-            LOG_ERROR("task is stop, reason:unknown.");
+            LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
     
