@@ -602,7 +602,7 @@ namespace xsce_ose
 
 		for (u64 i = 0; i < choices.size(); ++i)
 		{
-			LOG_INFO("choice[" << i << "]=" << choices[i] << ",rcv msg=" << recvMessage[i]);
+			LOG_DEBUG("choice[" << i << "]=" << choices[i] << ",rcv msg=" << recvMessage[i]);
 		}
 
 		//save recv data to databuf

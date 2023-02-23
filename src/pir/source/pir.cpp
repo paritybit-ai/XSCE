@@ -868,7 +868,7 @@ namespace xscePirAlg
         LOG_INFO("pir rlt=" << pir_rlt << ",pool rlt num=" << pir_result.size());
         for (uint64_t i = 0; i < pir_result.size() && i < show_cnt; i++)
         {
-            LOG_INFO("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
+            LOG_DEBUG("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         }
         
         optAlg->task_status.SetProgressPerBucket(100,pool_num);
@@ -982,7 +982,7 @@ namespace xscePirAlg
 
             for (uint64_t i = 0; i < match_id_num && i < max_show_cnt; i++)
             {
-                LOG_INFO(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
+                LOG_DEBUG(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
             }
 
             //here copy psi rlt for client party
@@ -1012,7 +1012,7 @@ namespace xscePirAlg
             LOG_INFO("srv get rmt id_num=" << rmt_id_num);
             for (uint64_t i = 0; i < str_num && i < max_show_cnt; i++)
             {
-                LOG_INFO("pir srv data[" << i << "]=" << data_row->at(i));
+                LOG_DEBUG("pir srv data[" << i << "]=" << data_row->at(i));
             }
         }
         else
@@ -1070,7 +1070,7 @@ namespace xscePirAlg
             {
                 for (uint64_t i = 0; i < result->size() && i < max_show_cnt; i++)
                 {
-                    LOG_INFO("pir alg result[" << i << "]=" << result->at(i));
+                    LOG_DEBUG("pir alg result[" << i << "]=" << result->at(i));
                 }
             }
         }
@@ -1269,7 +1269,7 @@ namespace xscePirAlg
 
         for (int64_t i = 0; i < max_show_cnt; i++)
         {
-            LOG_INFO("index[" << i << "]=" << id_hash_index.at(i));
+            LOG_DEBUG("index[" << i << "]=" << id_hash_index.at(i));
         }
         showBlk(2, 1);
 
@@ -1650,7 +1650,7 @@ namespace xscePirAlg
                     alg_info->matched_bucket.push_back(index);
                 }
                 if (i < max_show_cnt)
-                    LOG_INFO("srv matched bucket[" << i << "]=" << std::dec << index);
+                    LOG_DEBUG("srv matched bucket[" << i << "]=" << std::dec << index);
             }
         }
 
@@ -2200,7 +2200,7 @@ namespace xscePirAlg
             }
         }
 
-        LOG_INFO("\n"
+        LOG_DEBUG("\n"
                  << log.str());
     }
 
@@ -2280,9 +2280,9 @@ namespace xscePirAlg
             //for debug
             if (i < max_show_cnt)
             {
-                LOG_INFO("index:" << index_cli);
+                LOG_DEBUG("index:" << index_cli);
                 block b(*(key + index_cli * key_len), *(key + index_cli * key_len + 1));
-                LOG_INFO("key:" << b);
+                LOG_DEBUG("key:" << b);
 
                 uint8_t *charBuf = (uint8_t *)(dst + i * msg_aes_len);
                 std::stringstream ss;
@@ -2291,7 +2291,7 @@ namespace xscePirAlg
                 {
                     ss << (unsigned char)charBuf[j];
                 }
-                LOG_INFO(ss.str());
+                LOG_DEBUG(ss.str());
                 showBlk(2, 1);
                 rlt++;
             }
@@ -3076,7 +3076,7 @@ namespace xscePirAlg
             len_vec.at(i) = buf[total_num + i];
             total_save_num += len_vec.at(i);
             if (i < show_cnt)
-                LOG_INFO("vec[" << i << "] sieze=" << len_vec.at(i));
+                LOG_DEBUG("vec[" << i << "] sieze=" << len_vec.at(i));
         }
 
         if (total_save_num != total_num)

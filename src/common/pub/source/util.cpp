@@ -805,7 +805,7 @@ namespace util
             {
                 ss << std::hex << *(uint32_t *)(base + dataLen - 1 - j) << "-";
             }
-            LOG_INFO(ss.str());
+            LOG_DEBUG(ss.str());
         }
     }
 
@@ -883,7 +883,7 @@ namespace util
         for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
         {
             base = i * 2;
-            LOG_INFO("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
+            LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
         }
 
         //here call aes to encrypt str
@@ -920,7 +920,7 @@ namespace util
                 {
                     ss << (unsigned char)charBuf[k];
                 }
-                LOG_INFO(ss.str());
+                LOG_DEBUG(ss.str());
             }
 
             auto encRlt = aesEncBUf(strBuf, curEncBuf, strEncLen, curAesKey);
@@ -1045,7 +1045,7 @@ namespace util
         for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
         {
             base = i * 2;
-            LOG_INFO("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
+            LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
         }
 
         //here call aes to encrypt str
@@ -1082,7 +1082,7 @@ namespace util
                 {
                     ss << (unsigned char)charBuf[k];
                 }
-                LOG_INFO(ss.str());
+                LOG_DEBUG(ss.str());
             }
 
             auto encRlt = aesEncBUf(strBuf, curEncBuf, strEncLen, curAesKey);
@@ -1193,7 +1193,7 @@ namespace util
         for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
         {
             base = i * 2;
-            LOG_INFO("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
+            LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
         }
 
         //here call aes to encrypt str
@@ -1230,7 +1230,7 @@ namespace util
                 {
                     ss << (unsigned char)charBuf[k];
                 }
-                LOG_INFO(ss.str());
+                LOG_DEBUG(ss.str());
             }
 
             auto encRlt = aesEncBUf(strBuf, curEncBuf, strEncLen, curAesKey);
