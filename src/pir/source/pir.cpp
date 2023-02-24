@@ -146,7 +146,7 @@ namespace xscePirAlg
 
         int secu_key = optAlg->secuK;
         int pool_size = 1;
-        int pool_num = optAlg->dataLen;
+        int pool_num = optAlg->bucketNum;
 
         if (optAlg->simdLen > 1)
         {
@@ -447,7 +447,7 @@ namespace xscePirAlg
         //3. split data to bucket pool according specified rule
         int secu_key = optAlg->secuK;
         int pool_size = 1;
-        int pool_num = optAlg->dataLen;
+        int pool_num = optAlg->bucketNum;
 
         if (optAlg->simdLen > 1)
         {

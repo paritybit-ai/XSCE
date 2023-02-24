@@ -83,7 +83,7 @@ string ip;
 // internal seed should be different between  server and client parties.
 
 //pir alg related parameters listed below:
-//dataLen: specify the bucket pool number. input data will be split into multiple bucket pool
+//bucketNum: specify the bucket pool number. input data will be split into multiple bucket pool
 //headline: specify the number of head rows which will be omitted when reading data
 //col:      specify the column of id data
 //input file data only support csv format
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
 		optVec[i].thdIdex = 0;		   //set thread index to 0
 		optVec[i].commonSeed = seed;   //set 1st 64 bits of random seed
 		optVec[i].commonSeed1 = seed1; //set 2nd 64 bits random seed
-		optVec[i].dataLen = 2;		   //set bucket pool number.
+		optVec[i].bucketNum = 2;		   //set bucket pool number.
 		optVec[i].headLine = 0;		   //set 0 headline to be omitted.
 		optVec[i].col = 0;			   //set id column to 0.
 		optVec[i].statusPtr = &status; //not used here

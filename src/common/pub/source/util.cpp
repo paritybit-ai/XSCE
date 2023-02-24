@@ -86,6 +86,10 @@ namespace util
         optDst->startLoc = optSrc->startLoc;
         optDst->dataLen = optSrc->dataLen;
 
+        // use bucketNum to replace dataLen  .Modified by wumingzi. 2023:02:21,Tuesday,10:52:48.
+        optDst->bucketNum = optSrc->bucketNum;
+        //   .Modification over by wumingzi. 2023:02:21,Tuesday,10:52:58.
+
         optDst->circuitDir = optSrc->circuitDir;
 
         optDst->dataFn = optSrc->dataFn;
@@ -261,7 +265,7 @@ namespace util
 
         if (nullptr == pirRltVec)
         {
-            LOG_ERROR("savePirRlt2StrVec input pirRltVec is null " );
+            LOG_ERROR("savePirRlt2StrVec input pirRltVec is null ");
             return rlt;
         }
         int64_t len = pirRltVec->size();
@@ -294,7 +298,7 @@ namespace util
 
         if (nullptr == pirRltVec)
         {
-            LOG_ERROR("savePirRlt2StrVec input pirRltVec is null " );
+            LOG_ERROR("savePirRlt2StrVec input pirRltVec is null ");
             return rlt;
         }
         int64_t len = pirRltVec->size();
@@ -320,7 +324,6 @@ namespace util
 
         return rlt;
     }
-
 
     int64_t savePirRltThd(std::vector<std::vector<std::string> > &pirRltVec,
                           std::vector<std::string> *pirRlt)
@@ -1288,7 +1291,7 @@ namespace util
             dst[base] = aesOutput[i].as<std::uint64_t>()[0];
             dst[base + 1] = aesOutput[i].as<std::uint64_t>()[1];
         }
-       
+
         delete[] aesInput;
         delete[] aesOutput;
 

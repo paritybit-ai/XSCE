@@ -363,6 +363,10 @@ typedef struct _OptAlg
     // for pir alg.max string lengh in char.
     int64_t dataRowLen = 128;
 
+    // use bucketNum to replace dataLen  .Modified by wumingzi. 2023:02:21,Tuesday,10:52:48.
+    int64_t bucketNum = 1;
+    //   .Modification over by wumingzi. 2023:02:21,Tuesday,10:52:58.
+    
     // for spdz common algs.
     std::string formula_str;
     std::vector<int> n_inputs;

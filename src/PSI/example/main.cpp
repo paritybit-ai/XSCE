@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 		optVec[i].thdIdex = 0;			  //set thread index to 0
 		optVec[i].commonSeed = seed;	  //set 1st 64 bits of random seed
 		optVec[i].commonSeed1 = seed1;	  //set 2nd 64 bits random seed
-		optVec[i].dataLen = 3;			  //for debug show number.
+		optVec[i].bucketNum = 3;			  //for debug show number.
 		optVec[i].statusPtr = &optVec[i]; //not used here
 
 		//set ip addr and port
