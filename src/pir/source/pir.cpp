@@ -871,11 +871,6 @@ namespace xscePirAlg
             LOG_DEBUG("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         }
         
-        optAlg->task_status.SetProgressPerBucket(100,pool_num);
-        if(optAlg->task_status.IsStop()){
-            LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
-            return rlt;
-        };
     
         optAlg->thdOver = true;
         return rlt;
