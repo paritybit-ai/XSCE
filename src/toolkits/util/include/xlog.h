@@ -52,6 +52,8 @@
 #define DEBUG_EX 1
 #define LOG_FLAG 1
 
+#ifndef LOG_DEBUG
+
 #ifdef DEBUG_EX
 #define LOG_DEBUG(loginfo)                                                \
     {                                                                     \
@@ -62,27 +64,42 @@
 #define LOG_DEBUG(loginfo)
 #endif
 
+#endif
+
 #ifdef LOG_FLAG
+
+#ifndef LOG_INFO
 #define LOG_INFO(loginfo)                                                 \
     {                                                                     \
         CUR_TIME_LOG(" [INFO] ");                                         \
         std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
     }
+#endif
+
+#ifndef LOG_WARN
 #define LOG_WARN(loginfo)                                                 \
     {                                                                     \
         CUR_TIME_LOG(" [WARN] ");                                         \
         std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
     }
+#endif
+
+#ifndef LOG_ERROR
 #define LOG_ERROR(loginfo)                                                \
     {                                                                     \
         CUR_TIME_LOG(" [ERROR] ");                                        \
         std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
     }
+#endif
+
+#ifndef LOG_FATAL
 #define LOG_FATAL(loginfo)                                                \
     {                                                                     \
         CUR_TIME_LOG(" [FATAL] ");                                        \
         std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
     }
+#endif
+
 #else
 #define LOG_INFO(loginfo)
 #define LOG_WARN(loginfo)

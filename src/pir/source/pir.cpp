@@ -59,7 +59,14 @@ namespace xscePirAlg
         if (nullptr == optAlg)
         {
             LOG_ERROR("pir2PartyAlgTerminal input optAlg is null");
+            LOG_INFO("task_status.SetStop() ... ");
+            optAlg->task_status.SetStop();
             return rlt;
+        }
+        if (optAlg->task_status.IsStop())
+        {
+            LOG_INFO("task_status stopped, taks id =" << optAlg->taskId);
+            return OSE_ALG_INPUT_CONFIG_ERROR;
         }
         datafn = optAlg->dataFn;
         dataCol = optAlg->col;
@@ -84,11 +91,25 @@ namespace xscePirAlg
         if (dataCol < 0)
         {
             LOG_ERROR("terminal pir alg. input data col=" << dataCol << " is error. ");
+            LOG_INFO("task_status.SetStop() ... ");
+            optAlg->task_status.SetStop();
+            return OSE_ALG_INPUT_CONFIG_ERROR;
+        }
+        if (optAlg->task_status.IsStop())
+        {
+            LOG_INFO("task_status stopped, taks id =" << optAlg->taskId);
             return OSE_ALG_INPUT_CONFIG_ERROR;
         }
         if (headLine < 0)
         {
             LOG_ERROR("terminal pir alg. input headLine=" << headLine << " is error. ");
+            LOG_INFO("task_status.SetStop() ... ");
+            optAlg->task_status.SetStop();
+            return OSE_ALG_INPUT_CONFIG_ERROR;
+        }
+        if (optAlg->task_status.IsStop())
+        {
+            LOG_INFO("task_status stopped, taks id =" << optAlg->taskId);
             return OSE_ALG_INPUT_CONFIG_ERROR;
         }
 
@@ -102,9 +123,15 @@ namespace xscePirAlg
         else
         {
             LOG_ERROR("terminal pir alg. input data file rows =" << fileRow << " is error. ");
+            LOG_INFO("task_status.SetStop() ... ");
+            optAlg->task_status.SetStop();
             return OSE_ALG_DATA_READ_ERROR;
         }
-
+        if (optAlg->task_status.IsStop())
+        {
+            LOG_INFO("task_status stopped, taks id =" << optAlg->taskId);
+            return OSE_ALG_INPUT_CONFIG_ERROR;
+        }
         //for both client & server to get the col column data as index data(psi input)
         LOG_INFO("terminal pir alg. psi str vector size=" << psiStr.size() << " . ");
 
