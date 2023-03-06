@@ -86,6 +86,20 @@ cd test_dir
 2. party1: ./arithmetic -c 2 -r 1 -p 127.0.0.1:7878 add2
 ```
 
+- **纵向逻辑回归算法 示例**  
+
+编译完成后，将MP-SPDZ电路文件拷贝到根目录下。
+```shell
+cp -rf XSCE_PATH/src/arithmetic/Programs XSCE_PATH/
+```
+
+```
+在根目录下执行下面命令运行示例(：
+```
+1. party0: build/bin/lr  -r 0 -alg 1
+2. party1: build/bin/lr  -r 1 -alg 1
+```
+
 #### 算法设计
 - **PSI**  
 
@@ -129,6 +143,22 @@ PIR 算法实现原理如下:
 - `EXPORT_SYM int runMul3(SPDZAlg *spdzalg);  //三方乘法`
 - `EXPORT_SYM int runVar3(SPDZAlg *spdzalg);  //三方方差`
 - `EXPORT_SYM int runMid3(SPDZAlg *spdzalg);  //三方中位数`
+
+
+- **逻辑回归纵向**  
+
+算法实现原理如下:
+```
+输入输出：
+1）训练数据：数据Server方(role=0)提供本方样本的标签数据和特征数据，Client方(role=1)提供对应样本的特征数据，两方联合进行纵向逻辑回归.测试数据可选;
+2）训练参数：迭代次数、训练batchsize、学习速率;
+```
+
+算法过程：
+1）梯度训练中，每轮迭代中client方进行参数更新时，需要和server方的标签数据进行mpc计算，通过inner product算法（MP-SPDZ）完成;
+2) 训练完成后。server方和client方保存各自特征对应的模型参数结果到输出结果文件中;
+2）如果输入参数里面提供了测试数据集，双方对测试数据进行训练质量评估。
+```
 
 更多算法将在后续进行支持。
 

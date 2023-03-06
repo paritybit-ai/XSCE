@@ -5,4 +5,4 @@ var2-0
 0
 ./compile.py var2
 lgp:188
-opts: trunc_pr split edabit
+opts: trunc_pr edabit split

@@ -131,6 +131,10 @@ int main(int argc, char* argv[])
     {
         runInnerProd2(&spdzalg);
     }
+    else if (circuit_file == "lr-prodot2")
+    {
+        runProDot2(&spdzalg,4);
+    }
     else if (circuit_file == "add3")
     {
         runAdd3(&spdzalg);

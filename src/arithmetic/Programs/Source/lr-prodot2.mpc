@@ -1,0 +1,29 @@
+program.use_trunc_pr = True
+program.use_edabit(True)
+sfix.set_precision(24, 64)
+print_float_precision(10)
+
+def prodot(size,chunk,true_size,true_num):
+    offset = true_size/true_num
+    @if_e(chunk>offset)
+    def _():
+        @for_range(true_num)
+        def f(i):
+            sum = MemValue(sfix(0))
+            @for_range(offset)
+            def f(j):
+                a = sfix.get_input_from(0)
+                b = sfix.get_input_from(1)
+                sum.write(sum+a*b)
+            #c = sfix.dot_product(A,B)
+            print_ln('%s', sum.reveal())
+    @else_
+    def _():
+        print_ln("Array size is smaller than your input data size! ")
+        print_ln("please set a larger array size and re-compile your .mpc file!")
+
+size = 1000000
+chunk = 100000
+true_num = public_input()
+true_size = public_input()
+prodot(size,chunk,true_size,true_num)

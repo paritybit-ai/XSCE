@@ -85,6 +85,19 @@ Finally, use the following command in the project root directory to run arithmet
 2. party1: ./arithmetic -c 2 -r 1 -p 127.0.0.1:7878 add2
 ```
 
+- **logistic regression example**
+
+After building project,  copy the mp-spdz circuits to root directory. 
+```
+cp -rf XSCE_PATH/src/arithmetic/Programs XSCE_PATH/
+```
+
+Finally, use the following command in the project root directory to run logistic regression example:
+```
+1. party0: build/bin/lr  -r 0 -alg 1
+2. party1: build/bin/lr  -r 1 -alg 1
+```
+
 #### Algorithms design
 - **PSI**  
 
@@ -129,6 +142,20 @@ The 3-party algorithms are as follows：
 - `EXPORT_SYM int runMul3(SPDZAlg *spdzalg);  //3-party multiplication`
 - `EXPORT_SYM int runVar3(SPDZAlg *spdzalg);  //3-party variance`
 - `EXPORT_SYM int runMid3(SPDZAlg *spdzalg);  //3-party median-value`
+
+
+- **logistic regression (vertical mode)**  
+
+Logistic regression (vertical mode) algorithm is implemented as below:
+
+```
+Input/output：
+1. training data: server provide sample data including label value and feature value, client provide correspondent sample data only including feature value(should be aligned with server);
+2. traning parameters: iteration number, traning batch size, learning rate.
+```
+1. based on  gradient descent algorithm, client needs to use server label value to update its model parameters which is implemented MP-SPDZ to run a inner product calculation;
+2. when training is over,server and client save their model result to specified file.
+
 
 More algorithms will be supported soon.
 

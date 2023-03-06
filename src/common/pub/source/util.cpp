@@ -682,6 +682,239 @@ namespace util
         return rlt;
     }
 
+    void setVecPermutation(std::vector<int32_t> &vec, int num)
+    {
+        if (num < 1)
+        {
+            std::cout << "setVecPermutation input num error=" << num << std::endl;
+        }
+
+        vec.resize(num, -1);
+
+        for (int64_t i = 0; i < num; i++)
+        {
+            vec.at(i) = i;
+        }
+
+        int loop = 3;
+        for (int64_t i = 0; i < loop; i++)
+        {
+            std::random_shuffle(vec.begin(), vec.end());
+        }
+
+        return;
+    }
+
+    // for float buf send  .Modified by wumingzi. 2023:02:16,Thursday,13:32:48.
+    int64_t rcvChTcpVecFloat(std::string ip, int port, std::vector<float> &rcvVec, std::vector<float> &sendVec, std::string chName)
+    {
+        int64_t rlt = -1;
+        std::string addr = ip + ":" + std::to_string(port);
+
+        uint64_t sendLen = sendVec.size();
+        float *sendBuf = nullptr;
+        int32_t dataTypeLen = sizeof(float) / sizeof(uint8_t);
+
+        if (sendLen > 0)
+            sendBuf = (float *)&sendVec[0];
+
+        uint8_t *rcvBuf = nullptr;
+        float *rltBuf = nullptr;
+
+        std::cout << "rcvChTcpVecFloat addr=" << addr << ",chname=" << chName << ",dataTypeLen=" << dataTypeLen << std::endl;
+
+        auto rcvRLt = chRecvCharBufWithSend(addr, &rcvBuf, 0, (uint8_t *)sendBuf, sendLen * dataTypeLen, chName);
+        int64_t dataNum = rcvRLt / dataTypeLen;
+        if (rcvRLt > 0 && rcvBuf != nullptr)
+        {
+            rcvVec.resize(rcvRLt / dataTypeLen);
+            rltBuf = (float *)rcvBuf;
+            for (int64_t i = 0; i < dataNum; i++)
+            {
+                rcvVec[i] = rltBuf[i];
+            }
+            std::cout << "rcvChTcpVecFloat rcv len=" << dataNum << std::endl;
+            free(rcvBuf);
+
+            rlt = dataNum;
+        }
+
+        return rlt;
+    }
+
+    int64_t sendChTcpVecFloat(std::string ip, int port, std::vector<float> &rcvVec, std::vector<float> &sendVec, std::string chName)
+    {
+        int64_t rlt = -1;
+        std::string addr = ip + ":" + std::to_string(port);
+
+        uint64_t sendLen = sendVec.size();
+        float *sendBuf = nullptr;
+
+        if (sendLen > 0)
+            sendBuf = (float *)&sendVec[0];
+
+        uint8_t *rcvBuf = nullptr;
+        float *rltBuf = nullptr;
+        int32_t dataTypeLen = sizeof(float) / sizeof(uint8_t);
+        std::cout << "sendChTcpVeFloat sddr=" << addr << ",chname=" << chName << ",dataTypeLen=" << dataTypeLen << std::endl;
+
+        auto rcvRLt = chSendCharBufWithRcv(addr, (uint8_t *)sendBuf, sendLen * dataTypeLen, &rcvBuf, 0, chName);
+        int64_t dataNum = rcvRLt / dataTypeLen;
+        if (rcvRLt > 0 && rcvBuf != nullptr)
+        {
+            rcvVec.resize(dataNum);
+            rltBuf = (float *)rcvBuf;
+            for (int64_t i = 0; i < dataNum; i++)
+            {
+                rcvVec[i] = rltBuf[i];
+            }
+            std::cout << "rcvChTcpVecSync rcv len=" << dataNum << std::endl;
+            rlt = dataNum;
+            free(rcvBuf);
+        }
+
+        return rlt;
+    }
+
+    //for ch uint8_t buf rcv&send
+    int64_t chRecvCharBufWithSend(std::string ip, uint8_t **rcvBuf, uint64_t rcvLen, uint8_t *sendBuf, uint64_t sendLen, std::string chName)
+    {
+
+        int64_t rlt = -1;
+
+        if (ip.length() < 10)
+            return rlt;
+
+        IOService ios;
+        Endpoint ep(ios, ip, EpMode::Server, "tcpSendCharBufRcv" + chName);
+        // Endpoint ep(ios, ip, EpMode::Server, "tcpSendRcv");
+        Channel ch = ep.addChannel();
+
+        uint64_t rcvLenChar = 0;
+        //first send buf len to rcv
+        ch.recv(rcvLenChar);
+
+        // std::cout << "chRecvBufWithSend rcvLen=" << rcvLenChar << std::endl;
+
+        if (rcvLenChar > 0)
+        {
+
+            uint8_t *databuf = (uint8_t *)calloc(rcvLenChar / sizeof(uint8_t), sizeof(uint8_t));
+            if (databuf)
+            {
+                // sendLen *= sizeof(uint64_t);
+                // std::cout<<"begin recv len="<<rcvLenChar<<std::endl;
+                ch.recv((uint8_t *)databuf, rcvLenChar);
+                rlt = rcvLenChar;
+                *(uint8_t **)rcvBuf = (uint8_t *)databuf;
+            }
+
+            rlt = rcvLenChar / (sizeof(uint8_t));
+            // for (int64_t i = 0; i < rlt; i++) {
+            //    std::cout<<i<<":"<<std::dec<<*(*(uint64_t**)rcvBuf+i)<<std::endl;
+            // }
+        }
+
+        //begin to send data
+        uint64_t sendLenChar = sendLen * sizeof(uint8_t);
+        ch.send(sendLenChar);
+
+        if (sendLenChar > 0 && sendBuf != nullptr)
+        {
+            ch.send((uint8_t *)sendBuf, sendLenChar);
+        }
+
+        ch.close();
+        ep.stop();
+        ios.stop();
+
+        return rlt;
+    }
+
+    int64_t chSendCharBufWithRcv(std::string ip, uint8_t *sendBuf, uint64_t sendLen, uint8_t **rcvBuf, uint64_t rcvLenMax, std::string chName)
+    {
+
+        int64_t rlt = -1;
+
+        if (sendLen < 1)
+            return rlt;
+
+        if (nullptr == sendBuf)
+            return rlt;
+
+        if (ip.length() < 10)
+            return rlt;
+
+        IOService ios;
+        // Endpoint ep(ios, ip, EpMode::Client, "tcpSendRcv");
+        Endpoint ep(ios, ip, EpMode::Client, "tcpSendCharBufRcv" + chName);
+        Channel ch = ep.addChannel();
+
+        uint64_t sendBufLen = sendLen * sizeof(uint8_t);
+        // std::cout<<"chSendCharBufWithRcv sendBufLen="<<sendBufLen<<std::endl;
+        //first send buf len to rcv
+        ch.send(sendBufLen);
+        ch.send((uint8_t *)sendBuf, sendBufLen);
+
+        uint64_t rcvLen = 0;
+
+        //begin to rcv data from other.
+        ch.recv(rcvLen);
+        rlt = rcvLen;
+        // std::cout<<"chSendCharBufWithRcv rcvLen="<<rcvLen<<std::endl;
+
+        if (rcvLen > 0)
+        {
+            uint8_t *databuf = (uint8_t *)calloc(rcvLen / sizeof(uint8_t), sizeof(uint8_t));
+            if (databuf)
+            {
+                ch.recv((uint8_t *)databuf, rcvLen);
+                rlt = rcvLen;
+                *(uint8_t **)rcvBuf = (uint8_t *)databuf;
+            }
+
+            rlt = rcvLen / (sizeof(uint8_t));
+            // for (int64_t i = 0; i < rlt; i++) {
+            //    std::cout<<i<<":"<<std::dec<<*(*(uint64_t**)rcvBuf+i)<<std::endl;
+            // }
+        }
+
+        //release socket.
+        ch.close();
+        ep.stop();
+        ios.stop();
+
+        return rlt;
+    }
+
+    int64_t sendChBufSyncTcp(std::string ip, int port, uint8_t *dataBuf, uint64_t sendLen)
+    {
+
+        int rcvLen = 0;
+        uint8_t *rcvBuf = nullptr;
+
+        std::string addr = ip + ":" + std::to_string(port);
+        std::cout << "sendChBufSyncTcp addr=" << addr << std::endl;
+
+        auto rlt = chSendCharBufWithRcv(addr, dataBuf, sendLen, &rcvBuf, rcvLen);
+        return rlt;
+    }
+
+    int64_t rcvChBufSyncTcp(std::string ip, int port, uint8_t **dataBuf, uint64_t rcvLen)
+    {
+
+        uint8_t sendBuf[1];
+        sendBuf[0] = 0;
+        uint64_t sendLen = 1;
+
+        std::string addr = ip + ":" + std::to_string(port);
+
+        std::cout << "rcvChBufSyncTcp addr=" << addr << std::endl;
+        auto rlt = chRecvCharBufWithSend(addr, dataBuf, rcvLen, sendBuf, 0);
+
+        return rlt;
+    }
+
     /////////// ch tcp function
     int64_t chRecvBufWithSend(std::string ip, uint64_t **rcvBuf, uint64_t rcvLen, uint64_t *sendBuf, uint64_t sendLen, std::string chName)
     {

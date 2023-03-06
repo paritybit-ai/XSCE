@@ -250,7 +250,7 @@ int main(int argc, char **argv)
 		saveVec2File(idxCliVec, fnVec.at(1));
 	}
 
-	if (2 == role )
+	if (2 == role)
 	{
 		LOG_INFO("run pir alg in 2 thread.");
 		std::vector<std::thread> thrds;
@@ -311,7 +311,7 @@ int main(int argc, char **argv)
 	}
 	else if (0 == alg)
 	{
-		std::cout << "enter normal pir mode.alg=" << alg << std::endl;
+		LOG_INFO( "enter normal pir mode.alg=" << alg );
 		if (!role)
 		{
 			LOG_INFO("pir server running....");
@@ -406,16 +406,16 @@ int64_t launchThread(UtFunction &func, std::vector<OptAlg> *opt_vec, std::vector
 
 	if (nullptr == opt_vec)
 	{
-		std::cout << "input  is null. exit" << std::endl;
+		LOG_INFO( "input  is null. exit" );
 		return rlt;
 	}
 
 	int thread_num = opt_vec->size();
-	std::cout << "launchThread thd_num=" << thread_num << std::endl;
+	LOG_INFO( "launchThread thd_num=" << thread_num );
 
 	if (thread_num < 1)
 	{
-		std::cout << "thread_num  is invalid=" << thread_num << std::endl;
+		LOG_INFO( "thread_num  is invalid=" << thread_num );
 		return rlt;
 	}
 
@@ -430,12 +430,12 @@ int64_t launchThread(UtFunction &func, std::vector<OptAlg> *opt_vec, std::vector
 									   {
 										   if (0 == i)
 										   {
-											   std::cout << "inside thread. i=" << i << ",role=" << opt_vec->at(i).role << std::endl;
+											   LOG_INFO( "inside thread. i=" << i << ",role=" << opt_vec->at(i).role );
 											   func(&opt_vec->at(0), &ose_vec->at(0));
 										   }
 										   else
 										   {
-											   std::cout << "inside thread. i=" << i << ",role=" << opt_vec->at(i).role << std::endl;
+											   LOG_INFO( "inside thread. i=" << i << ",role=" << opt_vec->at(i).role );
 											   func(&opt_vec->at(i), &ose_vec->at(i));
 										   }
 									   }));
@@ -456,7 +456,7 @@ int64_t test_all(int role, int64_t srvSize, int64_t cliSize, int step, int alg, 
 	std::vector<OptAlg> opt_vec(party_num);
 	std::vector<OseOpt> ose_vec(party_num);
 
-	std::cout << "test all functions here." << std::endl;
+	LOG_INFO( "test all functions here." );
 
 	if (srvSize < 1 || srvSize > 10000)
 	{
@@ -572,14 +572,16 @@ int64_t test_all(int role, int64_t srvSize, int64_t cliSize, int step, int alg, 
 	UtFunction ut_func;
 	int test_cnt = 0;
 
-	//test case1: test ckks dot product stream function
-	alg_name = "pir support psi mode test.";
+	int type = 0;
+	//test case1: test pir type=0.
+	alg_name = "basic  pir mode test.";
 	test_name.push_back(alg_name);
 	//set test type to 0
 	for (int64_t i = 0; i < party_num; i++)
 	{
-		opt_vec.at(i).type = 0;
+		opt_vec.at(i).type = type;
 	}
+
 	if (test_flag.at(test_cnt++))
 	{
 		ut_func = pirUtest;
@@ -594,33 +596,57 @@ int64_t test_all(int role, int64_t srvSize, int64_t cliSize, int step, int alg, 
 	{ //test fail
 		test_rlt.push_back(0);
 	}
+	LOG_INFO( "\nCurrent test case " << test_name.back() << " is over.  \n");
+	//test case2: test pir type = 2000;
+	alg_name = "pir label support psi mode test.";
+	test_name.push_back(alg_name);
+	type = 2000;
+	//set test type to 2000
+	for (int64_t i = 0; i < party_num; i++)
+	{
+		opt_vec.at(i).type = type;
+	}
 
-	std::cout << "test all cases over." << std::endl
-			  << std::endl
-			  << std::endl
-			  << std::endl;
+	if (test_flag.at(test_cnt++))
+	{
+		ut_func = psipirUtest;
+		tmp_rlt = launchThread(ut_func, &opt_vec, &ose_vec);
+	}
+
+	if (ose_vec.at(1).test_rlt)
+	{ //test ok
+		test_rlt.push_back(1);
+	}
+	else
+	{ //test fail
+		test_rlt.push_back(0);
+	}
+	LOG_INFO( "\nCurrent test case " << test_name.back() << " is over.  \n");
+
+	LOG_INFO( "test all cases over.\n\n\n" )
+			
 	//here to show all test rlt
 	int test_len = test_name.size();
 	int err_num = 0;
 	for (int64_t i = 0; i < test_len; i++)
 	{
-		std::cout << "Test[" << i << "]:" << test_name.at(i);
+		LOG_INFO( "Test[" << i << "]:" << test_name.at(i));
 		if (test_rlt.at(i))
 		{
-			std::cout << " Ok.";
+			LOG_INFO( " Ok.\n");
 		}
 		else
 		{
-			std::cout << " Error.";
+			LOG_INFO( " Error.\n");
 			err_num++;
 		}
-		std::cout << std::endl;
 	}
-	std::cout << "Total cases=" << test_len << ",error cases=" << err_num << std::endl;
+	LOG_INFO( "Total cases=" << test_len << ",error cases=" << err_num );
 
 	return rlt;
 }
 
+// int64_t pirUtest(OptAlg *opt_vec, OseOpt *ose_vec)
 int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt)
 {
 
@@ -628,9 +654,9 @@ int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt)
 	int max_num = 100;
 	std::string tname = "pirUtest ";
 
-	std::cout << tname << " top alg test" << std::endl;
-	int role = opt->role;
+	LOG_INFO( tname << " top alg test" );
 
+	int role = opt->role;
 	std::vector<std::string> &srv_data_vec = pir_opt->srv_data_vec;
 	std::vector<std::string> &cli_data_vec = pir_opt->cli_data_vec;
 	std::vector<std::string> &srv_id_vec = pir_opt->srv_id_vec;
@@ -644,13 +670,15 @@ int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt)
 	{
 		saveVec2File(srv_data_vec, fnVec.at(0));
 		opt->dataFn = fnVec.at(0);
-		pir2PartyAlgTerminalBatch(opt);
+		auto pir_rlt = pir2PartyAlgTerminalBatch(opt);
+		LOG_INFO( "role=" << role << ",pir_rlt=" << pir_rlt );
 	}
-	if (role == 1)
+	else if (role == 1)
 	{
 		saveVec2File(cli_id_vec, fnVec.at(1));
 		opt->dataFn = fnVec.at(1);
-		pir2PartyAlgTerminalBatch(opt);
+		auto pir_rlt = pir2PartyAlgTerminalBatch(opt);
+		LOG_INFO( "role=" << role << ",pir_rlt=" << pir_rlt );
 	}
 
 	//here to check rlt file
@@ -670,7 +698,7 @@ int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt)
 		getRowStrVecFromCsvFile(rltfn, rltVec, 0);
 		auto rlt_len = rltVec.size();
 		showBlk(2, 2);
-		LOG_INFO("pir result  number=" << rlt_len);
+		LOG_INFO("pir   result  number=" << rlt_len);
 		auto cliSize = cli_id_vec.size();
 		if (rlt_len != cliSize - headline)
 		{
@@ -682,6 +710,87 @@ int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt)
 		for (size_t i = 0; i < rlt_len; i++)
 		{
 			LOG_INFO(i << ":" << rltVec.at(i));
+		}
+	}
+
+	return 0;
+}
+
+int64_t psipirUtest(OptAlg *opt, OseOpt *pir_opt)
+{
+
+	int64_t rlt = 0;
+	int max_num = 100;
+	std::string tname = "pirUtest ";
+
+	LOG_INFO( tname << " top alg test" );
+
+	int role = opt->role;
+	std::vector<std::string> &srv_data_vec = pir_opt->srv_data_vec;
+	std::vector<std::string> &cli_data_vec = pir_opt->cli_data_vec;
+	std::vector<std::string> &srv_id_vec = pir_opt->srv_id_vec;
+	std::vector<std::string> &cli_id_vec = pir_opt->cli_id_vec;
+
+	std::vector<int64_t> psi_cli_rlt;
+	std::vector<int64_t> psi_srv_rlt;
+
+	//save data to file
+	std::vector<std::string> fnVec;
+	fnVec.push_back("srv");
+	fnVec.push_back("cli");
+	if (role == 0)
+	{
+		saveVec2File(srv_data_vec, fnVec.at(0));
+		opt->dataFn = fnVec.at(0);
+		auto pir_rlt = pirStr2PartyAlgTerminalBatch(opt, srv_id_vec, srv_data_vec, psi_cli_rlt, psi_srv_rlt);
+		LOG_INFO( "role=" << role << ",pir_rlt=" << pir_rlt );
+	}
+	else if (role == 1)
+	{
+		saveVec2File(cli_id_vec, fnVec.at(1));
+		opt->dataFn = fnVec.at(1);
+		auto pir_rlt = pirStr2PartyAlgTerminalBatch(opt, cli_id_vec, cli_data_vec, psi_cli_rlt, psi_srv_rlt);
+		LOG_INFO( "role=" << role << ",pir_rlt=" << pir_rlt );
+	}
+
+	//here to check rlt file
+
+	int type = opt->type;
+	int psi_mode = 2000;
+	int pir_mode = 0;
+	if (psi_mode == type)
+	{
+		LOG_INFO( "psi mode. srv rlt len=" << psi_srv_rlt.size() << ",cli rlt len=" << psi_cli_rlt.size() );
+
+		if (0 == role)
+		{
+			std::vector<int64_t> &final_srv_rlt = psi_srv_rlt;
+			auto rlt_len = final_srv_rlt.size();
+			for (int64_t i = 0; i < rlt_len; i++)
+			{
+				LOG_INFO( "psi mode. srv rlt[" << i << "]=" << final_srv_rlt.at(i) );
+			}
+		}
+		else
+		{
+			std::vector<int64_t> &final_srv_rlt = psi_cli_rlt;
+			auto rlt_len = final_srv_rlt.size();
+			for (int64_t i = 0; i < rlt_len; i++)
+			{
+				LOG_INFO( "psi mode. cli rlt[" << i << "]=" << final_srv_rlt.at(i) );
+			}
+		}
+	}
+
+	if (pir_mode == type)
+	{
+
+		if (0 == role)
+		{
+			//no need to check srv data file
+		}
+		else
+		{
 		}
 	}
 

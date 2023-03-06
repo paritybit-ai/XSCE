@@ -1,5 +1,9 @@
 # XSCE
 
+## 20230305
+New feature list:
+- 1. Add vertical logistic regression alg
+
 ## 20220813
 New feature list:
 - 1. Add MP-SPDZ alg

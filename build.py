@@ -82,6 +82,14 @@ def build_libOTe(argv):
 
 def build_spdz(argv):
 
+    lib_path="lib"
+    if "clean" in argv :
+        if (os.path.isdir(lib_path)):
+            os.system("rm -f " + lib_path + "/libMP-SPDZ.a")
+            os.system("rm -f " + lib_path + "/libmpir.a")
+            os.system("rm -f " + lib_path + "/libmpirxx.a")
+            os.system("rm -f " + lib_path + "/libsimpleot.a")
+
     if (not os.path.isdir("lib")):
         os.system("mkdir " + "lib")
     SPDZ="third_party/MP-SPDZ"
@@ -105,11 +113,11 @@ def build_spdz(argv):
 
     os.system("make linux-machine-setup simde/simde")
     
-    if (False == os.path.isfile("deps/SimpleOT/libsimpleot.a")):
-        os.system("make deps/SimpleOT/libsimpleot.a")
+    if (False == os.path.isfile("SimpleOT/libsimpleot.a")):
+        os.system("make SimpleOT/libsimpleot.a")
 
-    if (False == os.path.isfile("deps/SimplestOT_C/ref10/libSimplestOT.a")):
-        os.system("make deps/SimplestOT_C/ref10/libSimplestOT.a")
+    # if (False == os.path.isfile("SimplestOT_C/ref10/libSimplestOT.a")):
+    #     os.system("make SimplestOT_C/ref10/libSimplestOT.a")
     
     # 检测Makefile释放已调整，如果未调整，则修改Makefile
     makefile_flag = check_str_in_file("Makefile", "libMP-SPDZ.a: $(FHEOBJS) $(COMMONOBJS) $(PROCESSOR) $(GC) $(OT)")
@@ -127,7 +135,7 @@ def build_spdz(argv):
         os.system("git restore CONFIG")
         os.system("rm -f CONFIG.old")
         os.system("mv CONFIG CONFIG.old")
-        os.system("sed 's/USE_KOS = 0/USE_KOS = 1/' CONFIG.old > CONFIG")
+        os.system("sed 's/USE_KOS = 1/USE_KOS = 0/' CONFIG.old > CONFIG")
 
     # 编译
     os.system("make MY_CFLAGS+=\"-Werror=unused-parameter -I../libOTe_libs/include -Ilocal/include -L../libOTe_libs/lib -Llocal/lib\" libMP-SPDZ.a")
@@ -136,8 +144,7 @@ def build_spdz(argv):
     # 拷贝编译好的库文件
     os.system("cp " + SPDZ + "/local/lib/*.a ./lib/")
     os.system("cp " + SPDZ + "/libMP-SPDZ.a ./lib/")
-    os.system("cp " + SPDZ + "/deps/SimplestOT_C/ref10/libSimplestOT.a ./lib/libSimplestOT_spdz.a")
-    os.system("cp " + SPDZ + "/deps/SimpleOT/libsimpleot.a ./lib/libsimpleot.a")
+    os.system("cp " + SPDZ + "/SimpleOT/libsimpleot.a ./lib/libsimpleot.a")
 
 def build_clean(argv) :
 
@@ -152,6 +159,17 @@ def build_clean(argv) :
 def build_xsce(argv, THIRD_LIB):
     
     build_path="build"
+    lib_path="lib"
+    if "clean" in argv :
+        if (os.path.isdir(build_path)):
+            os.system("rm -rf " + build_path)
+        if (os.path.isdir(lib_path)):
+            os.system("rm -f " + lib_path + "/libarich.a")
+            os.system("rm -f " + lib_path + "/libcommon.a")
+            os.system("rm -f " + lib_path + "/libPIR.a")
+            os.system("rm -f " + lib_path + "/libPSI.a")
+            os.system("rm -f " + lib_path + "/libtoolkits.a")
+
     if (not os.path.isdir(build_path)):
         os.system("mkdir " + build_path)
     if (not os.path.isdir("lib")):
@@ -251,10 +269,6 @@ def main(projectName, argv):
     if "help" in argv:
         help()
         return 
-
-    if "clean" in argv :
-        flag = True
-        build_clean(argv)
 
     if "setup" in argv :
         build_setup(argv)

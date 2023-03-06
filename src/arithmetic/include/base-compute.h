@@ -1,12 +1,12 @@
 /**
 * Copyright 2022 The XSCE Authors. All rights reserved.
-* 
+*
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
 * You may obtain a copy of the License at
-* 
+*
 *     http://www.apache.org/licenses/LICENSE-2.0
-* 
+*
 * Unless required by applicable law or agreed to in writing, software
 * distributed under the License is distributed on an "AS IS" BASIS,
 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,12 +16,12 @@
 /**
  * @file base-compute.h
  * @author Created by chonglou. 2022:05:28
- * @brief 
- * @version 
+ * @brief
+ * @version
  * @date 2022-05-28
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 
 #ifndef BASE_COMPUTE_H
@@ -34,6 +34,7 @@
 #include <iostream>
 
 #include "common/pub/include/globalCfg.h"
+#include "logreg/include/lr.h"
 
 using namespace std;
 
@@ -85,6 +86,22 @@ typedef struct _SPDZAlg
         output_file = alg->rltFn;
         SetNetworkMode(alg);
     }
+    void SetParam(const xsceLogRegAlg::Aby2Opt* alg, int round_seq)
+    {
+        input.resize(alg->data->size(),0);
+        for (int64_t i = 0; i < alg->data->size(); i++)
+        {
+            input.at(i) = alg->data->at(i);
+        }
+
+        task_id = alg->taskId;
+        task_round_seq = round_seq;
+        role = alg->role;
+
+        output_file = "output";
+        middle_prefix = "tmp";
+        SetNetworkMode(alg);
+    }
     void SetNetworkMode(const xsce_ose::OptAlg* alg)
     {
         if (xsce_ose::NETWORKMODE_GATEWAY == alg->networkmode)
@@ -98,9 +115,35 @@ typedef struct _SPDZAlg
             endpointlist_spdz = alg->endpointlist_spdz;
         }
     }
+    void SetNetworkMode(const xsceLogRegAlg::Aby2Opt* alg)
+    {
+        if (xsce_ose::NETWORKMODE_DEFAULT == alg->networkmode)
+        {
+            endpoint_spdz_vec.clear();
+            EndPoint_SPDZ endpoint1,endpoint2;
+            endpoint1.ip = alg->ip0;
+            endpoint1.port = alg->port0;
+
+            endpoint2.ip = alg->ip1;
+            endpoint2.port = alg->port1;
+            endpoint_spdz_vec.push_back(endpoint1);
+            endpoint_spdz_vec.push_back(endpoint2);
+        }
+        else if (xsce_ose::NETWORKMODE_GATEWAY == alg->networkmode)
+        {
+            gateway_cert_path = alg->gateway_cert_path;
+            endpointlist_spdz = alg->endpointlist_spdz;
+            endpointlist_spdz_gw = alg->endpointlist_spdz_gw;
+        }
+        else if (xsce_ose::NETWORKMODE_PORTSHARE == alg->networkmode)
+        {
+            endpointlist_spdz = alg->endpointlist_spdz;
+        }
+    }
     std::string task_id;           // xsce task id
     std::string alg_index_str;     // algorithms index, e.g., add2
     uint32_t role;                 // party(role) id
+    uint32_t    task_round_seq = 0; // task round sequence
 
     std::vector<EndPoint_SPDZ> endpoint_spdz_vec;    // for multi-parties
     std::string ip_file_name;          // for spdz ip-file
@@ -124,7 +167,9 @@ EXPORT_SYM int runMul2(SPDZAlg *spdzalg);
 EXPORT_SYM int runCmp2(SPDZAlg *spdzalg);
 EXPORT_SYM int runVar2(SPDZAlg *spdzalg);
 EXPORT_SYM int runMid2(SPDZAlg *spdzalg);
-EXPORT_SYM int runInnerProd2(SPDZAlg *spdzAlg);
+EXPORT_SYM int runInnerProd2(SPDZAlg *spdzalg);
+// two-party inner product for lr alg
+EXPORT_SYM int runProDot2(SPDZAlg *spdzalg, int chunk);
 
 // three-party computation
 EXPORT_SYM int runAdd3(SPDZAlg *spdzalg);

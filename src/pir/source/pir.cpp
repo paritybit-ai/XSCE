@@ -1102,6 +1102,9 @@ namespace xscePirAlg
         freeUInt64Vec(decode_buf);
         freeUInt64Vec(cipher_buf);
 
+        // set return value to normal  .Modified by wumingzi. 2023:02:10,Friday,17:16:13.
+        rlt = 0;
+        
         return rlt;
     }
 

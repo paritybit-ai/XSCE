@@ -61,8 +61,10 @@ typedef std::function<int64_t(int64_t *)> Functional;
 typedef std::function<int64_t(OptAlg*,OseOpt*)> UtFunction;
 int64_t launchThread(UtFunction &func, std::vector<OptAlg> *opt_vec,std::vector<OseOpt> *ose_vec);
 int64_t test_all(int role, int64_t srvSize, int64_t cliSize, int step, int alg, std::string ip, int port);
-int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt);
 
+// int64_t pirUtest(std::vector<OptAlg> *opt_vec, std::vector<OseOpt> *ose_vec);
+int64_t pirUtest(OptAlg *opt, OseOpt *pir_opt);
+int64_t psipirUtest(OptAlg *opt, OseOpt *pir_opt);
 
 //for ut use
 #include <thread>

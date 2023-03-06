@@ -309,6 +309,43 @@ int runSPDZComputation(SPDZAlg *spdzalg, int parties, int machine_type=EMACHINET
 }
 
 /**
+ * @brief inner product computation for lr alg
+ *
+ * @param spdzalg
+ * @param parties
+ * @param chunk
+ * @return int
+ */
+int runProDotComputation(SPDZAlg *spdzalg, int nParties, int chunk)
+{
+    spdzalg->pub_input_file = "Programs/Public-Input/" + spdzalg->alg_index_str;
+    ofstream ofile;
+    ofile.open(spdzalg->pub_input_file, fstream::out);
+    ofile << spdzalg->input.size()/chunk << endl;
+    ofile << spdzalg->input.size();
+    ofile.close();
+
+    if (1 == spdzalg->input_mode)
+    {
+        return runSPDZComputation_mem(spdzalg, nParties, true);
+    }
+
+    setupFiles(spdzalg);
+    initInputFiles(spdzalg);
+
+    // calc threads start inside
+    int rlt = runSPDZMachine<void>(spdzalg, nParties);
+    if (rlt < 0)
+    {
+        return rlt;
+    }
+
+    resolveOutput(spdzalg, true);
+
+    return 0;
+}
+
+/**
  * @brief spdz computation for variance algorithm
  *
  * @param spdzalg
@@ -539,10 +576,24 @@ int runVar2(SPDZAlg *spdzalg)
  * @param spdzalg
  * @return int
  */
-int runInnerProd2(SPDZAlg *spdzAlg)
+int runInnerProd2(SPDZAlg *spdzalg)
 {
-    spdzAlg->alg_index_str = "prodot2";
-    return runSPDZComputation(spdzAlg, 2);
+    spdzalg->alg_index_str = "prodot2";
+    return runSPDZComputation(spdzalg, 2);
+}
+
+/**
+ * @brief 2-party inner-product for lr alg
+ *
+ * @param spdzalg
+ * @param chunk
+ * @return int
+ */
+int runProDot2(SPDZAlg *spdzalg, int chunk)
+{
+    spdzalg->alg_index_str = "lr-prodot2";
+    spdzalg->thread_num = 1;
+    return runProDotComputation(spdzalg, 2, chunk);
 }
 
 /**

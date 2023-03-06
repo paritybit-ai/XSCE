@@ -63,6 +63,23 @@ namespace xsce_ose
                 log << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^" << std::endl;
         }
     }
+    void show_mtx(std::vector<std::vector<float> > &mtx)
+    {
+        auto len = mtx.size();
+        for (int64_t i = 0; i < len; i++)
+        {
+            show_vec(mtx.at(i));
+        }
+    }
+    void show_vec(std::vector<float> &vec)
+    {
+        auto len = vec.size();
+        for (int64_t i = 0; i < len; i++)
+        {
+            std::cout << LEFTFIX(8) << vec.at(i) << ",";
+        }
+        std::cout << "\n";
+    }
 
     int getStrMtxFromCsvFile(std::string fn, std::vector<std::vector<std::string> > &rlt)
     {
@@ -115,7 +132,6 @@ namespace xsce_ose
 
         return rlt.size();
     }
-
 
     int64_t getStrColFromMtx(std::vector<std::string> &strPsi, std::vector<std::vector<std::string> > &strMtx, int64_t row, int headLine)
     {
@@ -200,7 +216,7 @@ namespace xsce_ose
         return maxStrLen;
     }
 
-    int64_t getRowStrVecFromCsvFileWithCol(std::string fn, std::vector<std::string> &id_vec,std::vector<std::string> &data_vec, int headLine, int col)
+    int64_t getRowStrVecFromCsvFileWithCol(std::string fn, std::vector<std::string> &id_vec, std::vector<std::string> &data_vec, int headLine, int col)
     {
         std::ifstream in;
         size_t maxStrLen = 0;

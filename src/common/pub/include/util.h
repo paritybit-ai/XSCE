@@ -107,7 +107,6 @@ namespace util
     int64_t savePirRlt2StrVec(std::vector<std::vector<std::string> > *pirRltVec, std::vector<std::string> &vec);
     int64_t savePsiRlt2IntVec(std::vector<std::vector<std::int64_t> > *pirRltVec, std::vector<std::int64_t> &vec);
 
-
     void showHexValue(uint32_t *buf, uint64_t dataLen, uint64_t len);
     // tcp tool
 
@@ -126,7 +125,18 @@ namespace util
     uint32_t getUint32FromRmt(OptAlg *optAlg, uint32_t num, std::string chName);
     int64_t exchangeSecretKey(OptAlg *optAlg);
 
+    // for float data send  .Modified by wumingzi. 2023:02:16,Thursday,13:30:29.
+    int64_t sendChBufSyncTcp(std::string ip, int port, uint8_t *dataBuf, uint64_t sendLen);
+    int64_t rcvChBufSyncTcp(std::string ip, int port, uint8_t **dataBuf, uint64_t rcvLen);
+
+    int64_t rcvChTcpVecFloat(std::string ip, int port, std::vector<float> &rcvVec, std::vector<float> &sendVec, std::string chName = "");
+    int64_t sendChTcpVecFloat(std::string ip, int port, std::vector<float> &rcvVec, std::vector<float> &sendVec, std::string chName = "");
+    
+    int64_t chRecvCharBufWithSend(std::string ip, uint8_t **rcvBuf, uint64_t rcvLen, uint8_t *sendBuf, uint64_t sendLen, std::string chName = "");
+    int64_t chSendCharBufWithRcv(std::string ip, uint8_t *sendBuf, uint64_t sendLen, uint8_t **rcvBuf, uint64_t rcvLenMax, std::string chName = "");
+
     //aes tool
+    void setVecPermutation(std::vector<int32_t> &vec, int num);
     uint64_t getRand(uint64_t max);
     int64_t encStrVec2BufIndex(std::vector<std::string> &strVec, int64_t strLen, std::vector<uint64_t> seed, uint64_t **dataBuf, uint64_t **keyBuf, std::vector<std::int64_t> &indexVec);
     int64_t convertStrVec2Md5Index(std::vector<std::string> &strVec, uint32_t *&buf, std::vector<std::int64_t> &indexVec);
@@ -208,6 +218,8 @@ namespace util
             vec->at(i) = i;
         }
     }
+
+    //for time calculation
 
 }
 #endif //XSCE_THIRD_PARTY_PIR_ALG_UTIL_H

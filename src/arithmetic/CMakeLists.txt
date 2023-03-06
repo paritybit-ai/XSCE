@@ -21,5 +21,5 @@ add_definitions(-w)
 
 include_directories("./include")
 
-target_link_libraries(arith MP-SPDZ mpirxx mpir simpleot SimplestOT_spdz ssl crypto)
-target_link_libraries(arithmetic arith MP-SPDZ mpirxx mpir simpleot SimplestOT_spdz sodium ssl crypto boost_system boost_thread)
+target_link_libraries(arith MP-SPDZ mpirxx mpir simpleot ssl crypto)
+target_link_libraries(arithmetic arith MP-SPDZ mpirxx mpir simpleot sodium ssl crypto boost_system boost_thread)
