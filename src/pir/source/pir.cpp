@@ -521,7 +521,7 @@ namespace xscePirAlg
             }
         }
 
-        auto split_rlt = splitIdBufBucket(&data_info);
+        splitIdBufBucket(&data_info);
         pool_num = data_info.bucket_pool_num;
         LOG_INFO("pool_num=" << pool_num);
 
@@ -680,7 +680,7 @@ namespace xscePirAlg
 
         // free buf mem  .Modified by wumingzi. 2022:09:08,Thursday,15:50:10.
         //. save pir alg result for client only.
-        int pir_type = 0;
+        uint32_t pir_type = 0;
         if (!isServer)
         {
             savePirRlt2StrVec(&pir_rlt, data_vec);
@@ -751,7 +751,7 @@ namespace xscePirAlg
             return rlt;
         }
 
-        int64_t show_cnt = 100;
+        uint64_t show_cnt = 100;
         auto max_pool_num = data_info->bucket_pool_num;
         if (pool_num < 0 || pool_num >= max_pool_num)
         {
@@ -878,7 +878,7 @@ namespace xscePirAlg
 
         // add psi type support  .Modified by wumingzi. 2022:12:17,Saturday,14:18:00.
         //for psi type, bucket pool process is the same as pir,but client doesn't get data from server
-        int psi_type = 2000;
+        uint32_t psi_type = 2000;
         int64_t pir_rlt = 0;
         if (psi_type == optAlg->type)
         {
@@ -1112,7 +1112,6 @@ namespace xscePirAlg
     int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info)
     {
         int64_t rlt = -1;
-        int64_t tmp_rlt = -1;
         if (nullptr == optAlg)
         {
             LOG_ERROR("pir2PartyAlgTerminalBasic input optAlg is null");
@@ -1126,7 +1125,6 @@ namespace xscePirAlg
         }
 
         bool is_server = (0 == optAlg->role) ? true : false;
-        bool mock_idle_pir = false; //if true, even psi rlt is null,client still run ot with server.
 
         int64_t id_num = alg_info->id_num;
         uint8_t *hash_buf = alg_info->id_hash_buf;
@@ -1134,8 +1132,6 @@ namespace xscePirAlg
         std::vector<std::string> *result = alg_info->result;            //hold the id string for both srv&cli
         std::vector<std::int64_t> *psi_cli_rlt = alg_info->pir_cli_rlt; //hold the id string for both srv&cli
         std::vector<std::int64_t> *psi_srv_rlt = alg_info->pir_srv_rlt; //hold the id string for both srv&cli
-
-        uint64_t rmt_id_num = 0;
 
         if ((nullptr == hash_buf || nullptr == result))
         {
@@ -1163,12 +1159,6 @@ namespace xscePirAlg
         // uint64_t *cipher_buf = nullptr;
 
         std::string ch_name = "pirTerminalBatch";
-        uint64_t encode_len = alg_info->max_str_len;
-        uint64_t str_encode_len = encode_len;
-        uint64_t str_decode_len = 0;
-        uint64_t total_encode_buf_len = 0;
-        uint64_t aes_len = 0;
-        uint64_t str_num = 0;
         std::vector<int64_t> index_id(id_num);
         std::vector<uint64_t> seedVec;
         uint64_t seed = optAlg->commonSeed;

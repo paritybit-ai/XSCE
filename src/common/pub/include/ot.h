@@ -41,6 +41,8 @@
 #include <thread>
 #include <ctime>
 
+#include "Defines.h"
+
 #include <cryptoTools/Network/IOService.h>
 #include <cryptoTools/Network/Endpoint.h>
 #include <cryptoTools/Network/Channel.h>

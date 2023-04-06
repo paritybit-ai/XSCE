@@ -49,17 +49,63 @@
     strlog += level;
 #define SYS_ERROR() strerror(errno) << "(" << errno << ")"
 
+#ifndef LOG_BASE
+// 计算 __VA_ARGS__ 参数个数,最大支持64个参数
+#define VA_ARGS_COUNT_PRIVATE(\
+         _0,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8,  _9, \
+        _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, \
+        _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, \
+        _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, \
+        _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, \
+        _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, \
+        _60, _61, _62, _63, _64, N, ...) N
+
+#define VA_ARGS_COUNT(...) VA_ARGS_COUNT_PRIVATE(0, ##__VA_ARGS__,\
+        64, 63, 62, 61, 60, \
+        59, 58, 57, 56, 55, 54, 53, 52, 51, 50, \
+        49, 48, 47, 46, 45, 44, 43, 42, 41, 40, \
+        39, 38, 37, 36, 35, 34, 33, 32, 31, 30, \
+        29, 28, 27, 26, 25, 24, 23, 22, 21, 20, \
+        19, 18, 17, 16, 15, 14, 13, 12, 11, 10, \
+         9,  8,  7,  6,  5,  4,  3,  2,  1,  0)
+
+#define LOG_BASE_ARGS1(level, level_str, loginfo)     \
+                    {   \
+                        CUR_TIME_LOG(level_str);                                         \
+                        std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
+                    }
+#define LOG_BASE_ARGS2(level, level_str, logger, loginfo)     \
+                    {   \
+                        if (nullptr != logger)  \
+                        {   \
+                            std::ostringstream oss; oss << loginfo; \
+                            logger->log(__FILE__, __LINE__, Logger::level, oss.str().c_str()); \
+                        }   \
+                        else \
+                        {   \
+                            LOG_BASE_ARGS1(level, level_str, loginfo); \
+                        }   \
+                    }
+#define BASE_ARGS_(index) LOG_BASE_ARGS ## index
+#define BASE_ARGS(index) BASE_ARGS_(index)
+#define LOG_BASE(level, level_str, ...) { BASE_ARGS(VA_ARGS_COUNT(__VA_ARGS__))(level, level_str, __VA_ARGS__); }
+
+enum Level {
+    DEBUG = 0,
+    INFO,
+    WARN,
+    ERROR,
+};
+
+#endif
+
 #define DEBUG_EX 1
 #define LOG_FLAG 1
 
 #ifndef LOG_DEBUG
 
 #ifdef DEBUG_EX
-#define LOG_DEBUG(loginfo)                                                \
-    {                                                                     \
-        CUR_TIME_LOG(" [DEBUG] ");                                        \
-        std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
-    }
+#define LOG_DEBUG(...)  { LOG_BASE(DEBUG, " [DEBUG] ", __VA_ARGS__); }
 #else
 #define LOG_DEBUG(loginfo)
 #endif
@@ -69,35 +115,19 @@
 #ifdef LOG_FLAG
 
 #ifndef LOG_INFO
-#define LOG_INFO(loginfo)                                                 \
-    {                                                                     \
-        CUR_TIME_LOG(" [INFO] ");                                         \
-        std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
-    }
+#define LOG_INFO(...)  { LOG_BASE(INFO, " [INFO] ", __VA_ARGS__); }
 #endif
 
 #ifndef LOG_WARN
-#define LOG_WARN(loginfo)                                                 \
-    {                                                                     \
-        CUR_TIME_LOG(" [WARN] ");                                         \
-        std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
-    }
+#define LOG_WARN(...) { LOG_BASE(WARN, " [WARN] ", __VA_ARGS__); }
 #endif
 
 #ifndef LOG_ERROR
-#define LOG_ERROR(loginfo)                                                \
-    {                                                                     \
-        CUR_TIME_LOG(" [ERROR] ");                                        \
-        std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
-    }
+#define LOG_ERROR(...) { LOG_BASE(ERROR, " [ERROR] ", __VA_ARGS__); }
 #endif
 
 #ifndef LOG_FATAL
-#define LOG_FATAL(loginfo)                                                \
-    {                                                                     \
-        CUR_TIME_LOG(" [FATAL] ");                                        \
-        std::cout << strlog << loginfo << PRINT_FILE_LINE() << std::endl; \
-    }
+#define LOG_FATAL(...) { LOG_BASE(DPANIC, " [FATAL] ", __VA_ARGS__); }
 #endif
 
 #else

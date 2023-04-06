@@ -66,7 +66,7 @@ namespace xsce_ose
     void show_mtx(std::vector<std::vector<float> > &mtx)
     {
         auto len = mtx.size();
-        for (int64_t i = 0; i < len; i++)
+        for (std::size_t i = 0; i < len; i++)
         {
             show_vec(mtx.at(i));
         }
@@ -74,7 +74,7 @@ namespace xsce_ose
     void show_vec(std::vector<float> &vec)
     {
         auto len = vec.size();
-        for (int64_t i = 0; i < len; i++)
+        for (std::size_t i = 0; i < len; i++)
         {
             std::cout << LEFTFIX(8) << vec.at(i) << ",";
         }
@@ -231,7 +231,7 @@ namespace xsce_ose
             return rlt;
         }
 
-        int64_t col_index = col;
+        std::size_t col_index = (std::size_t)col;
 
         std::string lineStr;
         data_vec.resize(0);
