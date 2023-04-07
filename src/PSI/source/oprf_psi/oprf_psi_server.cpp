@@ -364,8 +364,8 @@ namespace oprf_psi
 
         LOG_INFO("Server ip:" << ip_ << ", port:" << port_);
         LOG_INFO("dataByteLen=" << dataByteLen);
-        LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
-        LOG_INFO("server internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
+        // LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
+        // LOG_INFO("server internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
         LOG_INFO("chName=" << chName);
         LOG_INFO("oprfSenderSize=" << senderSize);
 

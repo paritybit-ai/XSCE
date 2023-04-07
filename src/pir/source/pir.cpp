@@ -163,11 +163,12 @@ namespace xscePirAlg
         initSortIndex(indexId, idxCnt);
         realElementNum = convertStrVec2Md5Index(psiStr, hashBuf, indexId);
 
-        if (realElementNum > 1)
-        {
-            int showCnt = realElementNum > maxShowCnt ? maxShowCnt : realElementNum;
-            showHexValue(hashBuf, 4, showCnt);
-        }
+        // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+        // if (realElementNum > 1)
+        // {
+        //     int showCnt = realElementNum > maxShowCnt ? maxShowCnt : realElementNum;
+        //     showHexValue(hashBuf, 4, showCnt);
+        // }
 
         //3. split data to bucket pool according specified rule
 
@@ -229,8 +230,6 @@ namespace xscePirAlg
         pool_num = data_info.bucket_pool_num;
         LOG_INFO("pool_num=" << pool_num);
 
-        
-
         //here to run pir alg in each pool
         std::vector<std::vector<std::string> > pir_rlt(pool_num);
         std::vector<std::vector<std::int64_t> > pir_cli_rlt(pool_num);
@@ -262,9 +261,9 @@ namespace xscePirAlg
         }
 
         LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
-        
+
         optAlg->task_status.SetBucketNum(matched_pool_num);
-        
+
         // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
         int max_thread_num = 16;
         int thread_num = optAlg->thdNum;
@@ -457,8 +456,9 @@ namespace xscePirAlg
         std::vector<uint64_t> seedVec;
         uint64_t seed = optAlg->commonSeed;
         uint64_t seed2 = optAlg->inertalSeed;
-        seedVec.push_back(seed);
+        uint64_t seed3 = optAlg->inertalSeed1;
         seedVec.push_back(seed2);
+        seedVec.push_back(seed3);
 
         std::vector<int64_t> indexId(idxCnt);
 
@@ -468,7 +468,8 @@ namespace xscePirAlg
         if (realElementNum > 1)
         {
             int showCnt = realElementNum > maxShowCnt ? maxShowCnt : realElementNum;
-            showHexValue(hashBuf, 4, showCnt);
+            // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+            // showHexValue(hashBuf, 4, showCnt);
         }
 
         //3. split data to bucket pool according specified rule
@@ -568,9 +569,9 @@ namespace xscePirAlg
         }
 
         LOG_INFO("matched pool_num=" << matched_pool_num << ",matched_pool_index=" << matched_pool_index.size());
-        
+
         optAlg->task_status.SetBucketNum(matched_pool_num);
-        
+
         // here to use multithread  .Modified by wumingzi/wumingzi. 2022:06:22,Wednesday,22:48:18.
         int max_thread_num = 16;
         int thread_num = optAlg->thdNum;
@@ -730,12 +731,13 @@ namespace xscePirAlg
     //   .Modification over by wumingzi. 2022:09:08,Thursday,15:47:03.
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num)
     {
-        std::unique_ptr<int, std::function<void(int *)>> guard(new int(1), [optAlg](int* x){
-            delete x;
-            optAlg->thdOver = true;
-        });
+        std::unique_ptr<int, std::function<void(int *)> > guard(new int(1), [optAlg](int *x)
+                                                                {
+                                                                    delete x;
+                                                                    optAlg->thdOver = true;
+                                                                });
         int64_t rlt = -1;
-        
+
         optAlg->thdOver = false;
         if (nullptr == optAlg)
         {
@@ -771,9 +773,10 @@ namespace xscePirAlg
             optAlg->thdOver = true;
             return rlt;
         }
-        
-        optAlg->task_status.SetProgressPerBucket(20,pool_num);
-        if(optAlg->task_status.IsStop()){
+
+        optAlg->task_status.SetProgressPerBucket(20, pool_num);
+        if (optAlg->task_status.IsStop())
+        {
             LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
@@ -831,12 +834,13 @@ namespace xscePirAlg
             }
         }
 
-        optAlg->task_status.SetProgressPerBucket(40,pool_num);
-        if(optAlg->task_status.IsStop()){
+        optAlg->task_status.SetProgressPerBucket(40, pool_num);
+        if (optAlg->task_status.IsStop())
+        {
             LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
-        
+
         //maybe need to coordinate bucket index to speedup alg performance.
 
         //here srv&cli both have id_str/data row. begin to call basic pir alg.
@@ -870,8 +874,9 @@ namespace xscePirAlg
             pirPoolSplitBucket(optAlg, &alg);
         }
 
-        optAlg->task_status.SetProgressPerBucket(70,pool_num);
-        if(optAlg->task_status.IsStop()){
+        optAlg->task_status.SetProgressPerBucket(70, pool_num);
+        if (optAlg->task_status.IsStop())
+        {
             LOG_ERROR("task is stop, reason:unknown. task id = " << optAlg->taskId);
             return rlt;
         };
@@ -893,12 +898,12 @@ namespace xscePirAlg
         //   .Modification over by wumingzi. 2022:12:17,Saturday,14:20:07.
 
         LOG_INFO("pir rlt=" << pir_rlt << ",pool rlt num=" << pir_result.size());
-        for (uint64_t i = 0; i < pir_result.size() && i < show_cnt; i++)
-        {
-            LOG_DEBUG("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
-        }
-        
-    
+        // for data security,disable printing result data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+        // for (uint64_t i = 0; i < pir_result.size() && i < show_cnt; i++)
+        // {
+        //     LOG_DEBUG("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
+        // }
+
         optAlg->thdOver = true;
         return rlt;
     }
@@ -1001,11 +1006,11 @@ namespace xscePirAlg
                 LOG_INFO("hash buf psi alg result is error. psiRlt.size()=" << psi_result.size() << ",srvRLtVec.size()=" << srv_resutl_index.size());
                 return rlt;
             }
-
-            for (uint64_t i = 0; i < match_id_num && i < max_show_cnt; i++)
-            {
-                LOG_DEBUG(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
-            }
+            // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+            // for (uint64_t i = 0; i < match_id_num && i < max_show_cnt; i++)
+            // {
+            //     LOG_DEBUG(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
+            // }
 
             //here copy psi rlt for client party
             copyUint642Int64Vec(&psi_result, psi_cli_rlt);
@@ -1032,10 +1037,11 @@ namespace xscePirAlg
 
             rmt_id_num = getUint32FromRmt(optAlg, str_encode_len, ch_name);
             LOG_INFO("srv get rmt id_num=" << rmt_id_num);
-            for (uint64_t i = 0; i < str_num && i < max_show_cnt; i++)
-            {
-                LOG_DEBUG("pir srv data[" << i << "]=" << data_row->at(i));
-            }
+            // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+            // for (uint64_t i = 0; i < str_num && i < max_show_cnt; i++)
+            // {
+            //     LOG_DEBUG("pir srv data[" << i << "]=" << data_row->at(i));
+            // }
         }
         else
         {
@@ -1056,15 +1062,15 @@ namespace xscePirAlg
         }
 
         LOG_INFO("show opt 1:str_num=" << str_num << ",id_num=" << id_num << ",max_show_cnt=" << max_show_cnt << ",str_decode_len=" << str_decode_len << ",total_encode_buf_len=" << total_encode_buf_len);
-
-        if (is_server)
-        {
-            showHexValue((uint32_t *)encode_buf, 4, max_show_cnt);
-        }
-        else
-        {
-            showHexValue((uint32_t *)decode_buf, 4, max_show_cnt);
-        }
+        // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+        // if (is_server)
+        // {
+        //     showHexValue((uint32_t *)encode_buf, 4, max_show_cnt);
+        // }
+        // else
+        // {
+        //     showHexValue((uint32_t *)decode_buf, 4, max_show_cnt);
+        // }
 
         //. client run ot to get aes key from server
         if (mock_idle_pir)
@@ -1090,10 +1096,11 @@ namespace xscePirAlg
             }
             else
             {
-                for (uint64_t i = 0; i < result->size() && i < max_show_cnt; i++)
-                {
-                    LOG_DEBUG("pir alg result[" << i << "]=" << result->at(i));
-                }
+                // for data security,disable printing result data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+                // for (uint64_t i = 0; i < result->size() && i < max_show_cnt; i++)
+                // {
+                //     LOG_DEBUG("pir alg result[" << i << "]=" << result->at(i));
+                // }
             }
         }
 
@@ -1104,7 +1111,7 @@ namespace xscePirAlg
 
         // set return value to normal  .Modified by wumingzi. 2023:02:10,Friday,17:16:13.
         rlt = 0;
-        
+
         return rlt;
     }
 
@@ -1197,11 +1204,11 @@ namespace xscePirAlg
                 LOG_INFO("hash buf psi alg result is error. psiRlt.size()=" << psi_result.size() << ",srvRLtVec.size()=" << srv_resutl_index.size());
                 return rlt;
             }
-
-            for (uint64_t i = 0; i < match_id_num && i < max_show_cnt; i++)
-            {
-                LOG_INFO(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
-            }
+            // for data security,disable printing result  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+            // for (uint64_t i = 0; i < match_id_num && i < max_show_cnt; i++)
+            // {
+            //     LOG_INFO(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
+            // }
 
             //here copy psi rlt for client party
             copyUint642Int64Vec(&psi_result, psi_cli_rlt);
@@ -1274,18 +1281,20 @@ namespace xscePirAlg
         int max_show_cnt = id_num > shwo_cnt ? shwo_cnt : id_num;
         LOG_INFO("id id_hash_len_in_uin32t len=" << id_hash_len_in_uin32t << ",hash_byte_len=" << hash_byte_len);
 
+        // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+
         LOG_INFO("show original hash value");
-        showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
+        // showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
 
         mergeSortUIntBuf((uint32_t *)id_hash_buf, id_hash_len_in_uin32t, 0, id_num - 1, id_hash_index);
 
         LOG_INFO("show sort hash value");
-        showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
+        // showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
 
-        for (int64_t i = 0; i < max_show_cnt; i++)
-        {
-            LOG_DEBUG("index[" << i << "]=" << id_hash_index.at(i));
-        }
+        // for (int64_t i = 0; i < max_show_cnt; i++)
+        // {
+        //     LOG_DEBUG("index[" << i << "]=" << id_hash_index.at(i));
+        // }
         showBlk(2, 1);
 
         //then split to bucket
@@ -2203,20 +2212,21 @@ namespace xscePirAlg
 
             log << "pool[" << i << "] volume=" << pool_volume << std::endl;
 
-            showHexValue(buf, data_info->id_hash_byte_len / sizeof(uint32_t), max_show_cnt);
+            // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+            // showHexValue(buf, data_info->id_hash_byte_len / sizeof(uint32_t), max_show_cnt);
 
-            for (uint64_t j = 0; j < pool_volume && j < max_show_cnt; j++)
-            {
-                log << "id=" << data_info->id_str.at(i).at(j) << std::endl;
-                if (0 == data_info->role)
-                {
-                    log << "id=" << data_info->bucket_pool_data_row.at(i).at(j) << std::endl;
-                }
-            }
+            // for (uint64_t j = 0; j < pool_volume && j < max_show_cnt; j++)
+            // {
+            //     log << "id=" << data_info->id_str.at(i).at(j) << std::endl;
+            //     if (0 == data_info->role)
+            //     {
+            //         log << "id=" << data_info->bucket_pool_data_row.at(i).at(j) << std::endl;
+            //     }
+            // }
         }
 
         LOG_DEBUG("\n"
-                 << log.str());
+                  << log.str());
     }
 
     //aes decode function.   .Modified by wumingzi. 2022:06:17,Friday,23:58:26.
@@ -2295,17 +2305,19 @@ namespace xscePirAlg
             //for debug
             if (i < max_show_cnt)
             {
+                // for data security,disable printing keys  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+
                 LOG_DEBUG("index:" << index_cli);
                 block b(*(key + index_cli * key_len), *(key + index_cli * key_len + 1));
-                LOG_DEBUG("key:" << b);
+                // LOG_DEBUG("key:" << b);
 
                 uint8_t *charBuf = (uint8_t *)(dst + i * msg_aes_len);
                 std::stringstream ss;
                 ss << i << ": dec rlt=";
-                for (int64_t j = 0; j < msg_aes_len * 8; j++)
-                {
-                    ss << (unsigned char)charBuf[j];
-                }
+                // for (int64_t j = 0; j < msg_aes_len * 8; j++)
+                // {
+                //     ss << (unsigned char)charBuf[j];
+                // }
                 LOG_DEBUG(ss.str());
                 showBlk(2, 1);
                 rlt++;
@@ -2313,6 +2325,7 @@ namespace xscePirAlg
         }
 
         auto save_rlt = savePirRlt2Vec(srv_rlt, msg_aes_len, (uint64_t *)dst, str_rlt);
+        // for data security,disable printing result data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
         LOG_INFO("save_rlt=" << save_rlt);
 
         //free  mem

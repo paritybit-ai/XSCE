@@ -490,8 +490,8 @@ namespace oprf_psi
         Channel ch; //   = ep.addChannel();
         LOG_INFO("chName=" << chName);
         LOG_INFO("dataByteLen=" << dataByteLen);
-        LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
-        LOG_INFO("client internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
+        // LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
+        // LOG_INFO("client internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
 
         LOG_INFO("senderSize=" << std::dec << senderSize << ",receiverSize=" << receiverSize);
 
