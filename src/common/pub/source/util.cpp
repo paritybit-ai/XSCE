@@ -394,16 +394,17 @@ namespace util
 
         // check whether the common seed is set in previous code .Modified by wumingzi. 2023:04:06,Thursday,23:44:04.
         //if yes,no need to call exchangeSeed here and return directly
-        if(optAlg->commonSeed != 0xAA55AA55AA55AA55)
+        if (optAlg->commonSeed != 0xAA55AA55AA55AA55)
         {
             LOG_INFO("no need to call  exchangeSeed here   ");
-        }else
-        {
-            LOG_INFO("need to call exchangeSeed here because commonseed is default value="<<optAlg->commonSeed);
         }
-        
+        else
+        {
+            LOG_INFO("need to call exchangeSeed here because commonseed is default value=" << optAlg->commonSeed);
+        }
+
         //   .Modification over by wumingzi. 2023:04:06,Thursday,23:44:39.
-        
+
         s[0] = getRand(maxU64);
         s[1] = getRand(maxU64);
 
@@ -1162,7 +1163,7 @@ namespace util
 
             //show str buf.
             charBuf = (unsigned char *)strBuf;
-        // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+            // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
             // if (i < maxShowCnt)
             // {
             //     std::stringstream ss;
@@ -1292,11 +1293,13 @@ namespace util
 
         //for debug
         maxShowCnt = strNum;
-        for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
-        {
-            base = i * 2;
-            LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
-        }
+        // for data security,disable printing key to log  .Modified by wumingzi. 2023:04:10,Monday,22:24:18.
+
+        // for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
+        // {
+        //     base = i * 2;
+        //     LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
+        // }
 
         //here call aes to encrypt str
         uint64_t *curAesKey = nullptr;
@@ -1325,15 +1328,16 @@ namespace util
             //show str buf.
             charBuf = (unsigned char *)strBuf;
 
-            if (i < maxShowCnt)
-            {
-                std::stringstream ss;
-                for (uint64_t k = 0; k < strEncLen * 8; k++)
-                {
-                    ss << (unsigned char)charBuf[k];
-                }
-                LOG_DEBUG(ss.str());
-            }
+            // for data security,disable printing data to log  .Modified by wumingzi. 2023:04:10,Monday,22:24:18.
+            // if (i < maxShowCnt)
+            // {
+            //     std::stringstream ss;
+            //     for (uint64_t k = 0; k < strEncLen * 8; k++)
+            //     {
+            //         ss << (unsigned char)charBuf[k];
+            //     }
+            //     LOG_DEBUG(ss.str());
+            // }
 
             auto encRlt = aesEncBUf(strBuf, curEncBuf, strEncLen, curAesKey);
 
@@ -1440,11 +1444,12 @@ namespace util
         PRNG prng0(oc::toBlock(seed1, seed2));
         prng0.get(aesKeyBuf, aesKeyBufLen);
 
-        for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
-        {
-            base = i * 2;
-            LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
-        }
+        // for data security,disable printing key to log  .Modified by wumingzi. 2023:04:10,Monday,22:24:18.
+        // for (uint64_t i = 0; i < strNum && i < maxShowCnt; i++)
+        // {
+        //     base = i * 2;
+        //     LOG_DEBUG("key[" << i << "]=" << std::hex << aesKeyBuf[base] << "-" << aesKeyBuf[base + 1]);
+        // }
 
         //here call aes to encrypt str
         uint64_t *curAesKey = nullptr;
@@ -1472,16 +1477,16 @@ namespace util
 
             //show str buf.
             charBuf = (unsigned char *)strBuf;
-
-            if (i < maxShowCnt)
-            {
-                std::stringstream ss;
-                for (uint64_t k = 0; k < strEncLen * 8; k++)
-                {
-                    ss << (unsigned char)charBuf[k];
-                }
-                LOG_DEBUG(ss.str());
-            }
+            // for data security,disable printing key to log  .Modified by wumingzi. 2023:04:10,Monday,22:24:18.
+            // if (i < maxShowCnt)
+            // {
+            //     std::stringstream ss;
+            //     for (uint64_t k = 0; k < strEncLen * 8; k++)
+            //     {
+            //         ss << (unsigned char)charBuf[k];
+            //     }
+            //     LOG_DEBUG(ss.str());
+            // }
 
             auto encRlt = aesEncBUf(strBuf, curEncBuf, strEncLen, curAesKey);
 
