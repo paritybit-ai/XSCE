@@ -166,6 +166,8 @@ namespace util
         optDst->endpointlist_spdz = optSrc->endpointlist_spdz;
         optDst->endpointlist_spdz_gw = optSrc->endpointlist_spdz_gw;
 
+        optDst->logger = optSrc->logger;
+
         return rlt;
     }
 
@@ -370,12 +372,12 @@ namespace util
 
         if (0 == optAlg->role)
         {
-            LOG_INFO("this is role server. addr=" << srvAddr << ",port=" << port << ",cn=" << chName);
+            LOG_INFO(optAlg->logger, "this is role server. addr=" << srvAddr << ",port=" << port << ",cn=" << chName);
             rcvChTcpVecSync(srvAddr, port, rltVec, rcvVec, chName);
         }
         if (1 == optAlg->role)
         {
-            LOG_INFO("this is role client. addr=" << srvAddr << ",port=" << port << ",cn=" << chName);
+            LOG_INFO(optAlg->logger, "this is role client. addr=" << srvAddr << ",port=" << port << ",cn=" << chName);
             sendChTcpVecSync(srvAddr, port, rltVec, sendVec, chName);
         }
 
@@ -396,11 +398,11 @@ namespace util
         //if yes,no need to call exchangeSeed here and return directly
         if (optAlg->commonSeed != 0xAA55AA55AA55AA55)
         {
-            LOG_INFO("no need to call  exchangeSeed here   ");
+            LOG_INFO(optAlg->logger, "no need to call  exchangeSeed here   ");
         }
         else
         {
-            LOG_INFO("need to call exchangeSeed here because commonseed is default value=" << optAlg->commonSeed);
+            LOG_INFO(optAlg->logger, "need to call exchangeSeed here because commonseed is default value=" << optAlg->commonSeed);
         }
 
         //   .Modification over by wumingzi. 2023:04:06,Thursday,23:44:39.
@@ -538,12 +540,12 @@ namespace util
         }
         if (nullptr == buf)
         {
-            LOG_ERROR("cliRcvBuf input buf is null");
+            LOG_ERROR(optAlg->logger, "cliRcvBuf input buf is null");
             return rlt;
         }
         if (nullptr == len)
         {
-            LOG_ERROR("cliRcvBuf input len is null");
+            LOG_ERROR(optAlg->logger, "cliRcvBuf input len is null");
             return rlt;
         }
 
@@ -591,12 +593,12 @@ namespace util
         }
         if (nullptr == buf)
         {
-            LOG_ERROR("srvSendBuf input buf is null");
+            LOG_ERROR(optAlg->logger, "srvSendBuf input buf is null");
             return rlt;
         }
         if (len < 1)
         {
-            LOG_ERROR("srvSendBuf input len is 0");
+            LOG_ERROR(optAlg->logger, "srvSendBuf input len is 0");
             return rlt;
         }
 

@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "replace.h"
 #include <iostream>
 #include <string>
 

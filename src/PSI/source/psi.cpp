@@ -71,12 +71,12 @@ namespace xscePsiAlg
     int64_t oprfPsiAlgClient(OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<block> &oprf_values)
     {
         int64_t rlt = 0;
-        LOG_INFO("oprf psi alg client mode begin...");
+        LOG_INFO(optAlg->logger, "oprf psi alg client mode begin...");
 
         uint8_t *hashBuf = optAlg->hashBuf;
         PTR_ERR_RTN(hashBuf);
 
-        LOG_INFO("local role=" << optAlg->role << ",ip=" << optAlg->addr << ":" << optAlg->port);
+        LOG_INFO(optAlg->logger, "local role=" << optAlg->role << ",ip=" << optAlg->addr << ":" << optAlg->port);
 
         auto senderSize = optAlg->neles;
         auto receiverSize = optAlg->rmtNeles;
@@ -90,12 +90,12 @@ namespace xscePsiAlg
 
         uint32_t rptTime = 1;
 
-        LOG_INFO("opt role=" << optAlg->role << ",rpt time=" << rptTime);
+        LOG_INFO(optAlg->logger, "opt role=" << optAlg->role << ",rpt time=" << rptTime);
         for (uint32_t i = 0; i < rptTime; i++)
         {
             if (SERVER_C == optAlg->role)
             {
-                LOG_INFO("begin run oprf sender..");
+                LOG_INFO(optAlg->logger, "begin run oprf sender..");
 
                 oprf_psi::OprfPsiServer psi_server(ip, port);
                 //to init common seed & internal seed.
@@ -108,7 +108,7 @@ namespace xscePsiAlg
 
             if (CLIENT_C == optAlg->role)
             {
-                LOG_INFO("begin run oprf receiver..");
+                LOG_INFO(optAlg->logger, "begin run oprf receiver..");
                 oprf_psi::OprfPsiClient psi_client(ip, port);
                 //to init common seed & internal seed.
                 SetOprfPsiParams(*optAlg, &psi_client);
@@ -121,7 +121,7 @@ namespace xscePsiAlg
                 // here copy rlt vec.
                 splitHalfVector(&srvIndexVec, &optAlg->rltVec, &rltIndexVec);
 
-                LOG_INFO("oprf reciver no need to send psi rlt. ");
+                LOG_INFO(optAlg->logger, "oprf reciver no need to send psi rlt. ");
             }
         }
 
@@ -131,7 +131,7 @@ namespace xscePsiAlg
     int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, bool get_oprf_values, std::vector<block> &oprf_values, int roleSwitch)
     {
         int64_t rlt = -1;
-        LOG_INFO("hashbufPsiAlgClient top level ...");
+        LOG_INFO(optAlg->logger, "hashbufPsiAlgClient top level ...");
 
         int64_t client_neles = 0;
         int64_t neles = 0;
@@ -141,20 +141,20 @@ namespace xscePsiAlg
 
         if (roleSwitch > 0)
         {
-            LOG_INFO("hashbuf Psi Alg set no role switch flag to true");
+            LOG_INFO(optAlg->logger, "hashbuf Psi Alg set no role switch flag to true");
             noChangeServerRole = true;
         }
 
         uint32_t *hashBuf = (uint32_t *)hashBufInput;
         if (nullptr == hashBuf)
         {
-            LOG_ERROR("hashbuf Psi Alg ,input buf is error");
+            LOG_ERROR(optAlg->logger, "hashbuf Psi Alg ,input buf is error");
             return rlt;
         }
 
         uint64_t realElementNum = psiLen;
         VMIN_ERR_RTN(realElementNum, 1);
-        LOG_INFO("input hash element=" << realElementNum);
+        LOG_INFO(optAlg->logger, "input hash element=" << realElementNum);
 
         std::vector<uint64_t> indexHash(realElementNum);
         initSortIndex(indexHash, realElementNum);
@@ -162,7 +162,7 @@ namespace xscePsiAlg
         // now exchange element number to decide use oprf psi or hash psi.
         neles = realElementNum;
         rmtNeles = getUint32FromRmt(optAlg, neles, optAlg->chName);
-        LOG_INFO("local neles=" << neles << ",rmt neles=" << rmtNeles);
+        LOG_INFO(optAlg->logger, "local neles=" << neles << ",rmt neles=" << rmtNeles);
 
         // here to set  the party with more elements to be server.
         if (!noChangeServerRole)
@@ -196,7 +196,7 @@ namespace xscePsiAlg
 
             if (SERVER_C == optAlg->role && localClientBin)
             {
-                LOG_INFO("set server party to be client party.");
+                LOG_INFO(optAlg->logger, "set server party to be client party.");
                 optAlg->role = CLIENT_C;
                 optAlg->addr = optAlg->rmtParty.addr;
                 optAlg->port = optAlg->rmtParty.port;
@@ -204,7 +204,7 @@ namespace xscePsiAlg
 
             if (CLIENT_C == optAlg->role && !localClientBin)
             {
-                LOG_INFO("set client party to be server party.");
+                LOG_INFO(optAlg->logger, "set client party to be server party.");
                 optAlg->role = SERVER_C;
                 optAlg->addr = optAlg->localParty.addr;
                 optAlg->port = optAlg->localParty.port;
@@ -214,11 +214,11 @@ namespace xscePsiAlg
         if (SERVER_C == optAlg->role)
         {
             optAlg->addr = "0.0.0.0";
-            LOG_INFO("set server listening addr to 0.0.0.0");
+            LOG_INFO(optAlg->logger, "set server listening addr to 0.0.0.0");
         }
 
-        LOG_INFO("client neles=" << client_neles << ",role=" << optAlg->role);
-        LOG_INFO("final local addr=" << optAlg->addr << ":" << optAlg->port);
+        LOG_INFO(optAlg->logger, "client neles=" << client_neles << ",role=" << optAlg->role);
+        LOG_INFO(optAlg->logger, "final local addr=" << optAlg->addr << ":" << optAlg->port);
 
         // here to begin hashPsi or oprfPsi
         optAlg->neles = neles;
@@ -239,12 +239,12 @@ namespace xscePsiAlg
         if (CLIENT_C == optAlg->role)
         {
             savePsiRltVec(optAlg->rltVec, rltVec);
-            LOG_INFO("hashbufPsiAlgClient alg over. Client get result=" << rltVec.size() << ",srv index size=" << srvIndexVec.size());
+            LOG_INFO(optAlg->logger, "hashbufPsiAlgClient alg over. Client get result=" << rltVec.size() << ",srv index size=" << srvIndexVec.size());
         }
         else
         {
             rltVec.resize(0);
-            LOG_INFO("hashbufPsiAlgClient alg over. Server get no result=" << rltVec.size());
+            LOG_INFO(optAlg->logger, "hashbufPsiAlgClient alg over. Server get no result=" << rltVec.size());
         }
 
         return rlt;

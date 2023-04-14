@@ -47,6 +47,7 @@
 #include <condition_variable>
 #include <thread>
 #include "toolkits/util/include/task_status.h"
+#include "toolkits/util/include/replace.h"
 
 namespace xsce_ose {
 // Define general function error codde....  Modified by wumingzi on 2021/4/26 5:17 pm.
@@ -406,6 +407,7 @@ typedef struct _OptAlg
     std::string endpointlist_spdz_gw;
 
     xsce_ose_taskstatus::TaskStatus task_status;
+    Logger* logger{nullptr};
 } OptAlg;
 
 typedef struct _LogSaveOpt

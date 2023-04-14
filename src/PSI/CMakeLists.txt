@@ -14,4 +14,4 @@ add_executable(psi ${SRCS_PSI})
 include_directories("./include")
 
 target_link_libraries(PSI common toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread)
-target_link_libraries(psi common PIR PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ${GRPC_LIBS} ssl crypto)
+target_link_libraries(psi common PIR PSI toolkits libOTe SimplestOT cryptoTools sodium boost_system boost_thread relic ${GRPC_LIBS} ssl crypto ${PUB_LIBS})
