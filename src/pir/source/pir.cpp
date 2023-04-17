@@ -775,7 +775,7 @@ namespace xscePirAlg
             return rlt;
         }
 
-        optAlg->task_status.SetProgressPerBucket(20, pool_num);
+        // optAlg->task_status.SetProgressPerBucket(20, pool_num);
         if (optAlg->task_status.IsStop())
         {
             LOG_ERROR(optAlg->logger, "task is stop, reason:unknown. task id = " << optAlg->taskId);
@@ -835,7 +835,7 @@ namespace xscePirAlg
             }
         }
 
-        optAlg->task_status.SetProgressPerBucket(40, pool_num);
+        // optAlg->task_status.SetProgressPerBucket(40, pool_num);
         if (optAlg->task_status.IsStop())
         {
             LOG_ERROR(optAlg->logger, "task is stop, reason:unknown. task id = " << optAlg->taskId);
@@ -875,7 +875,7 @@ namespace xscePirAlg
             pirPoolSplitBucket(optAlg, &alg);
         }
 
-        optAlg->task_status.SetProgressPerBucket(70, pool_num);
+        optAlg->task_status.SetProgressPerBucket(20, pool_num);
         if (optAlg->task_status.IsStop())
         {
             LOG_ERROR(optAlg->logger, "task is stop, reason:unknown. task id = " << optAlg->taskId);
@@ -889,12 +889,12 @@ namespace xscePirAlg
         if (psi_type == optAlg->type)
         {
             LOG_INFO(optAlg->logger, "pir alg supports psi mode");
-            pir_rlt = psi2PartyAlgTerminalBasic(optAlg, &alg);
+            pir_rlt = psi2PartyAlgTerminalBasic(optAlg, &alg, pool_num);
         }
         else
         {
             LOG_INFO(optAlg->logger, "pir alg supports pir mode");
-            pir_rlt = pir2PartyAlgTerminalBasic(optAlg, &alg);
+            pir_rlt = pir2PartyAlgTerminalBasic(optAlg, &alg, pool_num);
         }
         //   .Modification over by wumingzi. 2022:12:17,Saturday,14:20:07.
 
@@ -905,11 +905,13 @@ namespace xscePirAlg
         //     LOG_DEBUG("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         // }
 
+        optAlg->task_status.SetProgressPerBucket(95, pool_num);
+
         optAlg->thdOver = true;
         return rlt;
     }
 
-    int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info)
+    int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num)
     {
         int64_t rlt = -1;
         int64_t tmp_rlt = -1;
@@ -979,10 +981,9 @@ namespace xscePirAlg
         uint64_t match_id_num = 0;
         std::vector<uint64_t> psi_result;
         std::vector<uint64_t> srv_resutl_index;
-
+        
         initSortIndex(index_id, id_num);
         LOG_INFO(optAlg->logger, "pir2PartyAlgTerminalBasic. id_num=" << id_num);
-
         //. run psi to get server data index which meets client query id
         // for now,only use oprf psi alg  .Modified by wumingzi/wumingzi. 2022:04:21,Thursday,21:35:12.
         std::vector<block> oprf_values;
@@ -996,7 +997,6 @@ namespace xscePirAlg
             showBlk(1, 2);
         }
         //   .Modification over by wumingzi/wumingzi. 2022:04:21,Thursday,21:35:25.
-
         LOG_INFO(optAlg->logger, "pir alg .  psi match rlt=" << psi_result.size() << ",srv rlt vec size=" << srv_resutl_index.size());
 
         match_id_num = psi_result.size();
@@ -1017,6 +1017,9 @@ namespace xscePirAlg
             copyUint642Int64Vec(&psi_result, psi_cli_rlt);
             copyUint642Int64Vec(&srv_resutl_index, psi_srv_rlt);
         }
+
+        //进度1
+        optAlg->task_status.SetProgressPerBucket(40, pool_num);
 
         //server to encode data row to cipher data.
         std::vector<uint64_t> key_buf_vec;
@@ -1051,6 +1054,9 @@ namespace xscePirAlg
             LOG_INFO(optAlg->logger, "cli get  str_decode_len=" << str_decode_len);
         }
         LOG_INFO(optAlg->logger, "show opt 0:str_num=" << str_num << ",id_num=" << id_num << ",aes_len=" << aes_len << ",str_decode_len=" << str_decode_len << ",total_encode_buf_len=" << total_encode_buf_len);
+        
+        //进度2
+        optAlg->task_status.SetProgressPerBucket(60, pool_num);
 
         //. server send cipher data to client
         if (is_server)
@@ -1061,6 +1067,8 @@ namespace xscePirAlg
         {
             cliRcvBuf(optAlg, &decode_buf, &total_encode_buf_len);
         }
+        //进度3
+        optAlg->task_status.SetProgressPerBucket(80, pool_num);
 
         LOG_INFO(optAlg->logger, "show opt 1:str_num=" << str_num << ",id_num=" << id_num << ",max_show_cnt=" << max_show_cnt << ",str_decode_len=" << str_decode_len << ",total_encode_buf_len=" << total_encode_buf_len);
         // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
@@ -1104,6 +1112,8 @@ namespace xscePirAlg
                 // }
             }
         }
+        //进度4
+        optAlg->task_status.SetProgressPerBucket(90, pool_num);
 
         //free memory
         freeUInt64Vec(encode_buf);
@@ -1117,7 +1127,7 @@ namespace xscePirAlg
     }
 
     // pir alg supports psi modes  .Modified by wumingzi. 2022:12:17,Saturday,14:22:20.
-    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info)
+    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num)
     {
         int64_t rlt = -1;
         if (nullptr == optAlg)
@@ -1178,9 +1188,13 @@ namespace xscePirAlg
         std::vector<uint64_t> psi_result;
         std::vector<uint64_t> srv_resutl_index;
 
+        //进度1
+        optAlg->task_status.SetProgressPerBucket(40, pool_num);
         initSortIndex(index_id, id_num);
         LOG_INFO(optAlg->logger, "pir2PartyAlgTerminalBasic. id_num=" << id_num);
-
+        
+        //进度2
+        optAlg->task_status.SetProgressPerBucket(60, pool_num);
         //. run psi to get server data index which meets client query id
         // for now,only use oprf psi alg  .Modified by wumingzi/wumingzi. 2022:04:21,Thursday,21:35:12.
         std::vector<block> oprf_values;
@@ -1194,6 +1208,9 @@ namespace xscePirAlg
             showBlk(1, 2);
         }
         //   .Modification over by wumingzi/wumingzi. 2022:04:21,Thursday,21:35:25.
+
+        //进度3
+        optAlg->task_status.SetProgressPerBucket(80, pool_num);
 
         LOG_INFO(optAlg->logger, "psi alg .  psi match rlt=" << psi_result.size() << ",srv rlt vec size=" << srv_resutl_index.size());
 
@@ -1216,6 +1233,8 @@ namespace xscePirAlg
             copyUint642Int64Vec(&srv_resutl_index, psi_srv_rlt);
         }
 
+        //进度4
+        optAlg->task_status.SetProgressPerBucket(90, pool_num);
         rlt = 0;
         return rlt;
     }
