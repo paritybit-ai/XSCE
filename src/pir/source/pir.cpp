@@ -616,6 +616,7 @@ namespace xscePirAlg
                 int cur_pool_idx = matched_pool_index.at(cur_thd_idx);
                 LOG_INFO(optAlg->logger, "start  pir thread loop " << i << ",thdIdx=" << cur_thd_idx << ",cur_pool_idx=" << cur_pool_idx);
                 optVec.at(j).thdIdex = cur_thd_idx;
+                optVec[j].rltVec.clear();
                 try
                 {
                     algTask[j] = std::thread(pir2PartyAlgTerminalPool, &optVec[j], &data_info, cur_pool_idx);
