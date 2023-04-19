@@ -44,7 +44,7 @@ namespace oprf_psi
             height = 1 << (logHeight);
         }
         virtual ~OprfPsi() {}
-        virtual int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles) = 0;
+        virtual int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg) = 0;
 
         void SetOprfValuesFlag(bool flag) {save_ov_ = flag;}
         std::vector<xsce_ose::block> GetOprfValues() {return oprf_values_;}

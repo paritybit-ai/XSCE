@@ -100,9 +100,11 @@ namespace xscePsiAlg
                 oprf_psi::OprfPsiServer psi_server(ip, port);
                 //to init common seed & internal seed.
                 SetOprfPsiParams(*optAlg, &psi_server);
-
+                
                 psi_server.SetOprfValuesFlag(get_oprf_values);
-                psi_server.OprfPsiAlg((uint8_t *)hashBuf, senderSize, receiverSize);
+                // optAlg->task_status.SetProgressPerBucket(25, 0);
+                psi_server.OprfPsiAlg((uint8_t *)hashBuf, senderSize, receiverSize, optAlg);
+                // optAlg->task_status.SetProgressPerBucket(30, 0);
                 oprf_values = psi_server.GetOprfValues();
             }
 
@@ -114,7 +116,9 @@ namespace xscePsiAlg
                 SetOprfPsiParams(*optAlg, &psi_client);
 
                 psi_client.SetOprfValuesFlag(get_oprf_values);
-                psi_client.OprfPsiAlg((uint8_t *)hashBuf, receiverSize, senderSize);
+                // optAlg->task_status.SetProgressPerBucket(25, 0);
+                psi_client.OprfPsiAlg((uint8_t *)hashBuf, receiverSize, senderSize, optAlg);
+                // optAlg->task_status.SetProgressPerBucket(30, 0);
                 oprf_values = psi_client.GetOprfValues();
                 auto rltIndexVec = psi_client.GetPsiResult();
 

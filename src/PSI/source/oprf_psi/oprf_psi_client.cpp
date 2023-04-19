@@ -273,7 +273,7 @@ namespace oprf_psi
     //   .Modification over by wumingzi. 2022:08:01,Monday,21:47:11.
     void OprfPsiClient::Run(PRNG &prng, Channel &ch, block common_seed, const u64 &sender_size,
                             const u64 &receiver_size,
-                            std::vector<block> &receiver_set)
+                            std::vector<block> &receiver_set, OptAlg* optAlg)
     {
         Timer timer;
 
@@ -468,7 +468,7 @@ namespace oprf_psi
         LOG_INFO("Final step Receiver total communication: " << totalData / std::pow(2.0, 20) << " MB");
     }
 
-    int64_t OprfPsiClient::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles)
+    int64_t OprfPsiClient::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg)
     {
         uint64_t senderSize = rmtNeles;
         uint64_t receiverSize = neles;
@@ -519,7 +519,7 @@ namespace oprf_psi
         }
 
         const block block_common_seed = oc::toBlock(commonSeed, commonSeed1);
-        Run(prng, ch, block_common_seed, senderSize, receiverSize, receiverSet);
+        Run(prng, ch, block_common_seed, senderSize, receiverSize, receiverSet, optAlg);
         //ch.close();
         //ep.stop();
         //ios.stop();

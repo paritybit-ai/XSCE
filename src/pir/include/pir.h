@@ -245,8 +245,8 @@ namespace xscePirAlg
                                          std::vector<int64_t> &psi_cli_rlt,
                                          std::vector<int64_t> &psi_srv_rlt);
 
-    int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, uint32_t pool_num);
-    int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info);
+    int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num);
+    int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num);
     // for pir alg support psi mode  .Modified by wumingzi. 2022:12:17,Saturday,14:21:06.
     int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num);
     //   .Modification over by wumingzi. 2022:12:17,Saturday,14:21:20.

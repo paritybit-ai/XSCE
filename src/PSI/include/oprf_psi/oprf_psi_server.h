@@ -37,11 +37,11 @@ namespace oprf_psi
     {
     public:
         OprfPsiServer(const std::string &ip, uint32_t port) : OprfPsi(ip, port) {}
-        int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles);
+        int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg);
 
     private:
         void Run(xsce_ose::PRNG &prng, xsce_ose::Channel &ch, xsce_ose::block commonSeed, const xsce_ose::u64 &sender_size,
-                 const xsce_ose::u64 &receiverSize, const std::vector<xsce_ose::block> &sender_set);
+                 const xsce_ose::u64 &receiverSize, const std::vector<xsce_ose::block> &sender_set, OptAlg* optAlg);
 
         void ComputeHashOutputs(xsce_ose::u64 width_in_bytes, xsce_ose::u64 sender_size, xsce_ose::Timer &timer, const std::vector<std::vector<xsce_ose::u8>> &trans_hash_inputs, xsce_ose::u64 hash_length_in_bytes, xsce_ose::Channel &ch);
     };

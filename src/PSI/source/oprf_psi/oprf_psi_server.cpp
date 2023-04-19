@@ -31,6 +31,8 @@
 #include <cryptoTools/Network/Session.h>
 
 #include "toolkits/util/include/xlog.h"
+#include <iostream>
+#include <chrono>
 
 namespace oprf_psi
 {
@@ -209,11 +211,14 @@ namespace oprf_psi
 
     void OprfPsiServer::Run(PRNG &prng, Channel &ch, block commonSeed,
                             const u64 &sender_size, const u64 &receiverSize,
-                            const std::vector<block> &sender_set)
+                            const std::vector<block> &sender_set, OptAlg *optAlg)
     {
+        auto start = chrono::high_resolution_clock::now();
+
         Timer timer;
         timer.setTimePoint("Sender start");
-
+        LOG_INFO(" SetProgressPerBucket (20, 0)");
+        optAlg->task_status.SetProgressPerBucket(50, 0);
         //logHeight means the number of bits to hold the value of h
         //location_in_bytes means the location of row in matrix(A/D/B)
         //width_bucket1 means the number of rows in a block(128 bits)
@@ -240,13 +245,13 @@ namespace oprf_psi
         Endpoint ep(ios, ip_, port_, EpMode::Server, "Run");
         std::string run_name = std::to_string(port_) + "Run";
         ch = ep.addChannel(run_name, run_name);
-
         //////////////////// Base OTs /////////////////////////////////
         std::vector<block> ot_messages(width);
         BitVector choices(width);
         SenderBaseOTs(prng, ch, choices, ot_messages);
         timer.setTimePoint("..Sender base OT finished");
-
+        LOG_INFO(" SetProgressPerBucket (30, 0)");
+        optAlg->task_status.SetProgressPerBucket(52, 0);
         ////////////// Initialization //////////////////////
 
         PRNG common_prng(commonSeed);
@@ -262,7 +267,8 @@ namespace oprf_psi
         //////////// Compute send_set
         std::vector<block> send_set(sender_size);
         ComputeSendSet(hash1LengthInBytes, sender_size, common_aes, sender_set, send_set);
-
+        LOG_INFO(" SetProgressPerBucket (40, 0)");
+        optAlg->task_status.SetProgressPerBucket(55, 0);
         LOG_INFO("Sender set transformed");
         timer.setTimePoint("Sender set transformed");
 
@@ -303,11 +309,13 @@ namespace oprf_psi
         std::vector<std::vector<u8> > matrixC(width_bucket1, std::vector<u8>(height_in_bytes));
         std::vector<std::vector<u8> > trans_hash_inputs(width, std::vector<u8>(sender_size_in_bytes, 0));
         std::vector<std::vector<u8> > trans_locations(width_bucket1, std::vector<u8>(sender_size * location_in_bytes + sizeof(u32)));
+       
+        LOG_INFO(" SetProgressPerBucket (90, 0)");
         for (uint32_t w_left = 0; w_left < width; w_left += width_bucket1)
         {
             auto wRight = w_left + width_bucket1 < width ? w_left + width_bucket1 : width;
             auto w = wRight - w_left;
-
+            LOG_INFO("w_left=" << w_left << ",wRight=" << wRight << ",w=" << w << ",width=" << width);
             //////////// Compute random locations (transposed) ////////////////
             //send_set holds the the key of PRF fucntion F for calculating value v of each element of sender
             //for each element x,calculate the value v[i] and store them in trans_locations
@@ -323,6 +331,8 @@ namespace oprf_psi
             // for each element x, calculate the value of C1[v[1]],C2[v[2]]....,Cw[v[w]] and store them in trans_hash_inputs
             ComputeHashInputs(sender_size, w, trans_locations, location_in_bytes, shift,
                               w_left, matrixC, trans_hash_inputs);
+            optAlg->task_status.SetProgressPerBucket(static_cast<uint32_t>(std::round(static_cast<double>(w_left) / static_cast<double>(width) * 35.0 + 55.0)), 0);
+            LOG_INFO(" std::round(w_left / width * 90.0)  SetProgressPerBucket (" << (static_cast<double>(w_left) / static_cast<double>(width) * 35.0 + 55.0) << ", 0)");
         }
 
         LOG_INFO("Sender transposed hash input computed");
@@ -339,16 +349,23 @@ namespace oprf_psi
         //send all oprv value of x to client.
         ComputeHashOutputs(width_in_bytes, sender_size, timer, trans_hash_inputs, hashLengthInBytes, ch);
 
+        optAlg->task_status.SetProgressPerBucket(95, 0);
+
         //TODO
         ch.close();
         ep.stop();
         ios.stop();
 
+
+        auto end = chrono::high_resolution_clock::now();
+        chrono::duration<double> elapsed_seconds = end - start;
+        cout << "oprfpsi函数运行时间为: " << elapsed_seconds.count() << " 秒" << endl;
+
         LOG_INFO("\n"
                  << timer);
     }
 
-    int64_t OprfPsiServer::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles)
+    int64_t OprfPsiServer::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg)
     {
         uint64_t senderSize = neles;
         uint64_t receiverSize = rmtNeles;
@@ -404,7 +421,7 @@ namespace oprf_psi
         LOG_INFO("sender size=" << senderSet.size());
 
         const block block_common_seed = oc::toBlock(commonSeed, commonSeed1);
-        Run(prng, ch, block_common_seed, senderSize, receiverSize, senderSet);
+        Run(prng, ch, block_common_seed, senderSize, receiverSize, senderSet, optAlg);
 
         //ch.close();
         //ep.stop();

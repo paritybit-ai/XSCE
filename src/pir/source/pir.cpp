@@ -875,7 +875,6 @@ namespace xscePirAlg
             pirPoolSplitBucket(optAlg, &alg);
         }
 
-        optAlg->task_status.SetProgressPerBucket(20, pool_num);
         if (optAlg->task_status.IsStop())
         {
             LOG_ERROR(optAlg->logger, "task is stop, reason:unknown. task id = " << optAlg->taskId);
@@ -905,14 +904,13 @@ namespace xscePirAlg
         //     LOG_DEBUG("pool[" << pool_num << "]. rlt[" << i << "]=" << pir_result.at(i));
         // }
 
-        optAlg->task_status.SetProgressPerBucket(95, pool_num);
-
         optAlg->thdOver = true;
         return rlt;
     }
 
     int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num)
     {
+        // optAlg->task_status.SetProgressPerBucket(20, pool_num);
         int64_t rlt = -1;
         int64_t tmp_rlt = -1;
         if (nullptr == optAlg)
@@ -1019,7 +1017,7 @@ namespace xscePirAlg
         }
 
         //进度1
-        optAlg->task_status.SetProgressPerBucket(40, pool_num);
+        // optAlg->task_status.SetProgressPerBucket(40, pool_num);
 
         //server to encode data row to cipher data.
         std::vector<uint64_t> key_buf_vec;
@@ -1056,7 +1054,7 @@ namespace xscePirAlg
         LOG_INFO(optAlg->logger, "show opt 0:str_num=" << str_num << ",id_num=" << id_num << ",aes_len=" << aes_len << ",str_decode_len=" << str_decode_len << ",total_encode_buf_len=" << total_encode_buf_len);
         
         //进度2
-        optAlg->task_status.SetProgressPerBucket(60, pool_num);
+        // optAlg->task_status.SetProgressPerBucket(60, pool_num);
 
         //. server send cipher data to client
         if (is_server)
@@ -1068,7 +1066,7 @@ namespace xscePirAlg
             cliRcvBuf(optAlg, &decode_buf, &total_encode_buf_len);
         }
         //进度3
-        optAlg->task_status.SetProgressPerBucket(80, pool_num);
+        // optAlg->task_status.SetProgressPerBucket(80, pool_num);
 
         LOG_INFO(optAlg->logger, "show opt 1:str_num=" << str_num << ",id_num=" << id_num << ",max_show_cnt=" << max_show_cnt << ",str_decode_len=" << str_decode_len << ",total_encode_buf_len=" << total_encode_buf_len);
         // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
@@ -1113,7 +1111,6 @@ namespace xscePirAlg
             }
         }
         //进度4
-        optAlg->task_status.SetProgressPerBucket(90, pool_num);
 
         //free memory
         freeUInt64Vec(encode_buf);
