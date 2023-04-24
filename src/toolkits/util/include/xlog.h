@@ -80,7 +80,7 @@
                         if (nullptr != logger)  \
                         {   \
                             std::ostringstream oss; oss << loginfo; \
-                            logger->log(__FILE__, __LINE__, Logger::level, oss.str().c_str()); \
+                            logger->log(__FILE__, __LINE__, level, oss.str().c_str()); \
                         }   \
                         else \
                         {   \

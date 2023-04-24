@@ -7,7 +7,11 @@
 
 #else
 
-struct Logger {};
+struct Logger {
+    void log(...){
+        
+    }
+};
 
 #endif
 
