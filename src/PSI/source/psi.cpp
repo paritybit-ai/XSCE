@@ -1,27 +1,27 @@
 /**
-* Copyright 2022 The XSCE Authors. All rights reserved.
-* 
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-* 
-*     http://www.apache.org/licenses/LICENSE-2.0
-* 
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright 2022 The XSCE Authors. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 /**
  * @file psi.cpp
  * @author Created by wumingzi. 2022:05:11,Wednesday,23:09:57.
- * @brief 
- * @version 
+ * @brief
+ * @version
  * @date 2022-05-11
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 
 #include "psi.h"
@@ -58,7 +58,8 @@ namespace xscePsiAlg
         return rlt;
     }
 
-    void SetOprfPsiParams(const OptAlg &opt, oprf_psi::OprfPsi* psi_object) {
+    void SetOprfPsiParams(const OptAlg &opt, oprf_psi::OprfPsi *psi_object)
+    {
         psi_object->SetWidth(opt.oprfWidth);
         psi_object->SetLogHeight(opt.oprfLogHeight);
         psi_object->SetHashLengthInBytes(opt.oprfHashLenInBytes);
@@ -98,12 +99,16 @@ namespace xscePsiAlg
                 LOG_INFO(optAlg->logger, "begin run oprf sender..");
 
                 oprf_psi::OprfPsiServer psi_server(ip, port);
-                //to init common seed & internal seed.
+                // to init common seed & internal seed.
                 SetOprfPsiParams(*optAlg, &psi_server);
-                
+
                 psi_server.SetOprfValuesFlag(get_oprf_values);
                 // optAlg->task_status.SetProgressPerBucket(25, 0);
-                psi_server.OprfPsiAlg((uint8_t *)hashBuf, senderSize, receiverSize, optAlg);
+                rlt = psi_server.OprfPsiAlg((uint8_t *)hashBuf, senderSize, receiverSize, optAlg);
+                if (rlt < 0)
+                {
+                    LOG_ERROR("execution error in psi_server.OprfPsiAlg function, check the detailed log")
+                }
                 // optAlg->task_status.SetProgressPerBucket(30, 0);
                 oprf_values = psi_server.GetOprfValues();
             }
@@ -112,12 +117,16 @@ namespace xscePsiAlg
             {
                 LOG_INFO(optAlg->logger, "begin run oprf receiver..");
                 oprf_psi::OprfPsiClient psi_client(ip, port);
-                //to init common seed & internal seed.
+                // to init common seed & internal seed.
                 SetOprfPsiParams(*optAlg, &psi_client);
 
                 psi_client.SetOprfValuesFlag(get_oprf_values);
                 // optAlg->task_status.SetProgressPerBucket(25, 0);
-                psi_client.OprfPsiAlg((uint8_t *)hashBuf, receiverSize, senderSize, optAlg);
+                rlt = psi_client.OprfPsiAlg((uint8_t *)hashBuf, receiverSize, senderSize, optAlg);
+                if (rlt < 0)
+                {
+                    LOG_ERROR("execution error in psi_client.OprfPsiAlg function, check the detailed log")
+                }
                 // optAlg->task_status.SetProgressPerBucket(30, 0);
                 oprf_values = psi_client.GetOprfValues();
                 auto rltIndexVec = psi_client.GetPsiResult();
@@ -233,7 +242,7 @@ namespace xscePsiAlg
 
         //   .Modified by wumingzi/wumingzi. 2022:04:21,Thursday,21:28:06.
         // here to exchange seed.
-        //here to disable exchange secret key,which is done in upper main thread function.
+        // here to disable exchange secret key,which is done in upper main thread function.
         exchangeSecretKey(optAlg);
         //   .Modification over by wumingzi/wumingzi. 2022:04:21,Thursday,21:28:09.
 

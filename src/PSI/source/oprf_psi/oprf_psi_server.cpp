@@ -375,7 +375,8 @@ namespace oprf_psi
         if (hashLen < 128)
         {
             LOG_ERROR("Hash len is invalid, hash len:" << hashLen);
-            return false;
+            //return false;
+            return -1;
         }
         int dataByteLen = hashLen / (sizeof(uint8_t) * 8);
 
