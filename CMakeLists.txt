@@ -1,4 +1,3 @@
-
 cmake_minimum_required (VERSION 3.20)
 
 project(XSCE VERSION 1.0)
@@ -73,5 +72,5 @@ add_subdirectory(src/common)
 add_subdirectory(src/toolkits)
 add_subdirectory(src/PSI)
 add_subdirectory(src/pir)
-#add_subdirectory(src/arithmetic)
-#add_subdirectory(src/logreg)
+add_subdirectory(src/arithmetic)
+add_subdirectory(src/logreg)
