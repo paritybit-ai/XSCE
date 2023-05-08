@@ -3,3 +3,5 @@ lib
 *.swp
 libOTe_libs
 *.sh
+third_party/libOTe_libs/*
+third_party/sodium/*

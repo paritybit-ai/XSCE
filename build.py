@@ -15,6 +15,7 @@ def submodule_update(submoddir) :
 
 def help():
 
+    print(" sodium \n\tlibOTe module.")
     print(" libote \n\tlibOTe module.")
     print(" spdz \n\tMP-SPDZ module.")
     print(" xsce  \n\txsce module.")
@@ -73,12 +74,41 @@ def build_libOTe(argv):
     submodule_update(LIBOTE)
     os.chdir(LIBOTE)
     submodule_update("cryptoTools")
-    os.system("python3 build.py --setup --boost --relic --sodium")
-    os.system("python3 build.py -D ENABLE_RELIC=ON -D ENABLE_ALL_OT=ON -D ENABLE_SODIUM=ON -D ENABLE_CIRCUITS=ON")
+    os.system("python3 build.py --setup --boost --relic -D CMAKE_C_FLAGS=-fPIC -D CMAKE_CXX_FLAGS=-fPIC -D ENABLE_SIMPLESTOT=OFF -D ENABLE_SIMPLESTOT_ASM=OFF -D ENABLE_MRR=ON -D ENABLE_SILENTOT=ON -D ENABLE_KKRT=ON")
+    os.system("python3 build.py -D ENABLE_RELIC=ON -D ENABLE_SODIUM=OFF -D ENABLE_CIRCUITS=ON -D CMAKE_C_FLAGS=-fPIC -D CMAKE_CXX_FLAGS=-fPIC -D ENABLE_SIMPLESTOT=OFF -D ENABLE_SIMPLESTOT_ASM=OFF -D ENABLE_MRR=ON -D ENABLE_MR=ON -D ENABLE_SILENTOT=ON -D ENABLE_KKRT=ON -D ENABLE_KOS=ON -D ENABLE_IKNP=ON -D ENABLE_DELTA_KOS=ON -D ENABLE_OOS=ON -D ENABLE_RR=ON")
     os.system("python3 build.py --install=../../" + THIRD_LIB)
     os.chdir(wd)
 
     return THIRD_LIB
+
+
+def build_sodium(argv):
+
+    sodium_path="third_party/sodium"
+    sodium_source = "https://github.com/osu-crypto/libsodium.git"
+    sodium_tag = "4e825a68baebdf058543f29762c73c17b1816ec0"
+
+    if "clean" in argv :
+        os.system("rm -rf " + sodium_path)
+
+    wd=os.getcwd()
+
+    if(not os.path.isdir(sodium_path)):
+        os.mkdir(path=sodium_path)
+    os.chdir(sodium_path)
+
+    print("============= XSCE_OSE Building Sodium =============")
+    os.system("git clone {0}".format(sodium_source))
+    os.chdir("./libsodium")
+    os.system("git checkout {0}".format(sodium_tag))
+    os.system("./autogen.sh -s")
+    os.system("./configure --prefix=${PWD}/../../libOTe_libs")
+    os.system("make && make check")
+    os.system("make install ")
+
+    os.chdir(wd)
+
+    return True
 
 def build_spdz(argv):
 
@@ -275,6 +305,10 @@ def main(projectName, argv):
         return 
 
     THIRD_LIB=""
+    if "sodium" in argv :
+        flag = True
+        build_sodium(argv)
+
     if "libote" in argv :
         flag = True
         THIRD_LIB = build_libOTe(argv)

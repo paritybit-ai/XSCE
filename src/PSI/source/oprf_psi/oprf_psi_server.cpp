@@ -213,7 +213,7 @@ namespace oprf_psi
                             const u64 &sender_size, const u64 &receiverSize,
                             const std::vector<block> &sender_set, OptAlg *optAlg)
     {
-        auto start = chrono::high_resolution_clock::now();
+        auto start = std::chrono::high_resolution_clock::now();
 
         Timer timer;
         timer.setTimePoint("Sender start");
@@ -357,9 +357,9 @@ namespace oprf_psi
         ios.stop();
 
 
-        auto end = chrono::high_resolution_clock::now();
-        chrono::duration<double> elapsed_seconds = end - start;
-        cout << "oprfpsi函数运行时间为: " << elapsed_seconds.count() << " 秒" << endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        std::cout << "oprfpsi函数运行时间为: " << elapsed_seconds.count() << " 秒" << std::endl;
 
         LOG_INFO("\n"
                  << timer);

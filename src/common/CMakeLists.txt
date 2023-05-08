@@ -11,4 +11,5 @@ add_library(common STATIC ${SRCS})
 
 include_directories("./pub/include")
 
-target_link_libraries(common libOTe SimplestOT cryptoTools sodium boost_system boost_thread)
+target_compile_options(common PUBLIC -fPIC)
+target_link_libraries(common libOTe cryptoTools boost_system boost_thread)
