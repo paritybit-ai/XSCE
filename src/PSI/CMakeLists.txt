@@ -18,7 +18,7 @@ target_link_libraries(psi common PIR PSI toolkits libOTe cryptoTools boost_syste
 
 if(ENABLE_XSCE_BUILD)
     add_library(psid SHARED ${SRCS})
-    add_executable(psid_test ${SRCS_PSI})
+    add_executable(psid_test ${SRCS_PSI} gcov)
     target_link_libraries(psid common toolkits libOTe cryptoTools boost_system boost_thread relic ${GRPC_LIBS} ssl crypto ${PUB_LIBS})
     target_link_libraries(psid_test psid)
 endif()
