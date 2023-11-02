@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package OprfPsiOfflineProto;
+
+
+message OprfArgs {
+    uint64 hashLen = 1;
+    uint32 width = 2;
+    uint32 logHeight = 3;
+    uint32 height = 4;
+    uint32 hashLengthInBytes = 5;
+    uint64 hash1LengthInBytes = 6;
+    uint32 bucket1 = 7;
+    uint32 bucket2 = 8;
+    uint64 commonSeed = 9;
+    uint64 commonSeed1 = 10;
+    uint64 inertalSeed = 11;
+    uint64 inertalSeed1 = 12;
+};
+
+message Block {
+    uint64 buf1 = 1;
+    uint64 buf2 = 2;
+}
+
+message DoubleBlock {
+    Block block1 = 1;
+    Block block2 = 2;
+}
+
+message PairUint64 {
+    uint64 data1 = 1;
+    uint64 data2 = 2;
+}
+message BitVector {
+    bytes data = 1;
+    uint64 size = 2;
+}
+
+// 离线算法每一阶段结果保存
+message ClientOfflineDumpData {
+    repeated Block receiver_set = 1;
+    uint64 receiver_size = 2;
+    uint64 sender_size = 3;
+    repeated DoubleBlock ot_messages = 4;
+    repeated bytes trans_hash_inputs = 5;
+    repeated PairUint64 pair_result = 6; // server和client结果对, first为client，second为server结果
+    repeated uint64 result = 7; // client结果，由pair_result得来
+}
+// 离线算法每一阶段结果保存
+message ServerOfflineDumpData {
+    repeated Block sender_set = 1;
+    uint64 sender_size = 2;
+    uint64 receiver_size = 3;
+    repeated Block ot_messages = 4;
+    BitVector choices = 5;
+    repeated bytes trans_hash_inputs = 6;
+    repeated uint64 result = 7;
+}
+
+message ClientOfflineInput {
+    OprfArgs args = 1;
+    // recv_data替换网络中的recv
+    bytes recv_data = 2;
+    repeated string ids = 3;
+    ClientOfflineDumpData dump_data = 4;
+}
+message ClientOfflineOutput {
+    ClientOfflineDumpData dump_data = 4;
+    // send_data替换网络中的send
+    bytes send_data = 2;
+}
+
+message ServerOfflineInput {
+    OprfArgs args = 1;
+    bytes recv_data = 2;
+    repeated string ids = 3;
+    ServerOfflineDumpData dump_data = 4;
+}
+message ServerOfflineOutput {
+    ServerOfflineDumpData dump_data = 1;
+    bytes send_data = 2;
+}
