@@ -686,12 +686,13 @@ namespace xscePirAlg
         // free buf mem  .Modified by wumingzi. 2022:09:08,Thursday,15:50:10.
         //. save pir alg result for client only.
         uint32_t pir_type = 0;
+        const int64_t psi_no_server_result = 2001;
         if (!isServer)
         {
             savePirRlt2StrVec(&pir_rlt, data_vec);
             savePsiDataRlt2Vec(&data_info, psi_cli_rlt);
             LOG_INFO(optAlg->logger, "finla pir rlt. data_vec size=" << data_vec.size() << ",psi_cli_rlt size=" << psi_cli_rlt.size() << ",psi_srv_rlt size=" << psi_srv_rlt.size());
-            if (pir_type != optAlg->type)
+            if (pir_type != optAlg->type && psi_no_server_result != optAlg->type)
             {
                 LOG_INFO(optAlg->logger, "not pir mode,client send psi rlt to server");
                 sendInt64Mtx(optAlg, pir_srv_rlt);
@@ -700,7 +701,7 @@ namespace xscePirAlg
         else
         { // srv rcv psi rlt index
             pir_srv_rlt.resize(0);
-            if (pir_type != optAlg->type)
+            if (pir_type != optAlg->type && psi_no_server_result != optAlg->type)
             {
                 LOG_INFO(optAlg->logger, "not pir mode,server begin to rcv psi rlt from server");
                 rcvInt64Mtx(optAlg, pir_srv_rlt);
@@ -886,8 +887,9 @@ namespace xscePirAlg
         // add psi type support  .Modified by wumingzi. 2022:12:17,Saturday,14:18:00.
         // for psi type, bucket pool process is the same as pir,but client doesn't get data from server
         uint32_t psi_type = 2000;
+        const int64_t psi_no_server_result = 2001;
         int64_t pir_rlt = 0;
-        if (psi_type == optAlg->type)
+        if (psi_type == optAlg->type || psi_no_server_result == optAlg->type)
         {
             LOG_INFO(optAlg->logger, "pir alg supports psi mode");
             pir_rlt = psi2PartyAlgTerminalBasic(optAlg, &alg, pool_num);
