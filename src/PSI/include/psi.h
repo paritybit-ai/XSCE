@@ -27,6 +27,7 @@
 #include <vector>
 #include "common/pub/include/Defines.h"
 #include "common/pub/include/globalCfg.h"
+#include "common/pub/include/util.h"
 
 namespace xscePsiAlg
 {
@@ -45,4 +46,10 @@ namespace xscePsiAlg
                                 std::vector<uint64_t> &srvIndexVec,
                                 std::vector<xsce_ose::block>& oprf_values,
                                 int roleSwitch = 1);
+    int64_t hashbufPsiAlgClient(std::vector<util::Buf128>&& hashBufInput, 
+                                std::vector<uint64_t> &rltVec, 
+                                OptAlg *optAlg, 
+                                std::vector<uint64_t> &srvIndexVec, 
+                                std::vector<xsce_ose::block> *oprf_values = nullptr,
+                                int roleSwitch = 1); 
 } // namespace xscePsiAlg

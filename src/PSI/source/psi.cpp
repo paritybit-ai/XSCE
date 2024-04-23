@@ -267,10 +267,167 @@ namespace xscePsiAlg
         std::vector<block> tmp;
         return hashbufPsiAlgClient(hashBufInput, psiLen, rltVec, optAlg, srvIndexVec, false, tmp, roleSwitch);
     }
-
-    int64_t hashbufPsiAlgClient(uint64_t *hashBufInput, int64_t psiLen, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, std::vector<block> &oprf_values, int roleSwitch)
+ 
+    // ------------------------------优化内存版本---------------------------
+    int64_t hashbufPsiAlgClient(std::vector<Buf128>&& hashBufInput, std::vector<uint64_t> &rltVec, OptAlg *optAlg, std::vector<uint64_t> &srvIndexVec, std::vector<block> *oprf_values, int roleSwitch)
     {
-        return hashbufPsiAlgClient(hashBufInput, psiLen, rltVec, optAlg, srvIndexVec, true, oprf_values, roleSwitch);
+        int64_t rlt = -1;
+        LOG_INFO(optAlg->logger, "hashbufPsiAlgClient top level ...");
+
+        int64_t client_neles = 0;
+        int64_t neles = 0;
+        int64_t rmtNeles = 0;
+        bool localClientBin = false;
+        bool noChangeServerRole = false; // do not change the
+
+        if (roleSwitch > 0)
+        {
+            LOG_INFO(optAlg->logger, "hashbuf Psi Alg set no role switch flag to true");
+            noChangeServerRole = true;
+        }
+
+        uint64_t realElementNum = hashBufInput.size();
+        VMIN_ERR_RTN(realElementNum, 1);
+        LOG_INFO(optAlg->logger, "input hash element=" << realElementNum);
+
+        // std::vector<uint64_t> indexHash(realElementNum);
+        // initSortIndex(indexHash, realElementNum);
+
+        // now exchange element number to decide use oprf psi or hash psi.
+        neles = realElementNum;
+        rmtNeles = getUint32FromRmt(optAlg, neles, optAlg->chName);
+        LOG_INFO(optAlg->logger, "local neles=" << neles << ",rmt neles=" << rmtNeles);
+
+        // here to set  the party with more elements to be server.
+        if (!noChangeServerRole)
+        {
+            if (SERVER_C == optAlg->role)
+            {
+                if (neles >= rmtNeles)
+                {
+                    localClientBin = false;
+                    client_neles = rmtNeles;
+                }
+                else
+                {
+                    localClientBin = true;
+                    client_neles = neles;
+                }
+            }
+            else
+            {
+                if (neles > rmtNeles)
+                {
+                    localClientBin = false;
+                    client_neles = rmtNeles;
+                }
+                else
+                {
+                    localClientBin = true;
+                    client_neles = neles;
+                }
+            }
+
+            if (SERVER_C == optAlg->role && localClientBin)
+            {
+                LOG_INFO(optAlg->logger, "set server party to be client party.");
+                optAlg->role = CLIENT_C;
+                optAlg->addr = optAlg->rmtParty.addr;
+                optAlg->port = optAlg->rmtParty.port;
+            }
+
+            if (CLIENT_C == optAlg->role && !localClientBin)
+            {
+                LOG_INFO(optAlg->logger, "set client party to be server party.");
+                optAlg->role = SERVER_C;
+                optAlg->addr = optAlg->localParty.addr;
+                optAlg->port = optAlg->localParty.port;
+            }
+        }
+
+        if (SERVER_C == optAlg->role)
+        {
+            optAlg->addr = "0.0.0.0";
+            LOG_INFO(optAlg->logger, "set server listening addr to 0.0.0.0");
+        }
+
+        LOG_INFO(optAlg->logger, "client neles=" << client_neles << ",role=" << optAlg->role);
+        LOG_INFO(optAlg->logger, "final local addr=" << optAlg->addr << ":" << optAlg->port);
+
+        // here to begin hashPsi or oprfPsi
+        // optAlg->neles = neles;
+        // optAlg->rmtNeles = rmtNeles;
+        // optAlg->hashBuf = (uint8_t *)hashBuf;
+        // optAlg->hashLen = 128;
+        // optAlg->hashIndex = &indexHash;
+
+        //   .Modified by wumingzi/wumingzi. 2022:04:21,Thursday,21:28:06.
+        // here to exchange seed.
+        // here to disable exchange secret key,which is done in upper main thread function.
+        exchangeSecretKey(optAlg);
+        //   .Modification over by wumingzi/wumingzi. 2022:04:21,Thursday,21:28:09.
+
+        srvIndexVec.resize(0);
+        // oprfPsiAlgClient(optAlg, srvIndexVec, get_oprf_values, oprf_values);
+        // auto senderSize = neles;
+        // auto receiverSize = rmtNeles;
+        // if (CLIENT_C == optAlg->role)
+        // {
+        //     std::swap(senderSize, receiverSize);
+        // }
+        std::string ip = optAlg->addr;
+        int port = optAlg->port;
+        // uint32_t *hashBuf = (uint32_t *)hashBufInput.data(); 
+        if (SERVER_C == optAlg->role)
+        {
+            LOG_INFO(optAlg->logger, "begin run oprf sender..");
+            oprf_psi::OprfPsiServer psi_server(ip, port);
+            // to init common seed & internal seed.
+            SetOprfPsiParams(*optAlg, &psi_server);
+            psi_server.SetOprfValuesFlag(oprf_values != nullptr);
+            // rlt = psi_server.OprfPsiAlg((uint8_t *)hashBuf, neles, rmtNeles, optAlg);
+            rlt = psi_server.OprfPsiAlg(std::move(hashBufInput), rmtNeles, optAlg);
+            if (rlt < 0)
+            {
+                LOG_ERROR("execution error in psi_server.OprfPsiAlg function, check the detailed log")
+            }
+            if (oprf_values != nullptr) {
+                *oprf_values = psi_server.GetOprfValues();
+            }
+        } else if (CLIENT_C == optAlg->role)
+        {
+            LOG_INFO(optAlg->logger, "begin run oprf receiver..");
+            oprf_psi::OprfPsiClient psi_client(ip, port);
+            // to init common seed & internal seed.
+            SetOprfPsiParams(*optAlg, &psi_client);
+            psi_client.SetOprfValuesFlag(oprf_values != nullptr);
+            // rlt = psi_client.OprfPsiAlg((uint8_t *)hashBuf, neles, rmtNeles, optAlg);
+            rlt = psi_client.OprfPsiAlg(std::move(hashBufInput), rmtNeles, optAlg);
+
+            if (rlt < 0)
+            {
+                LOG_ERROR("execution error in psi_client.OprfPsiAlg function, check the detailed log")
+            }
+            if (oprf_values != nullptr) {
+                *oprf_values = psi_client.GetOprfValues();
+            }
+            auto rltIndexVec = psi_client.GetPsiResult();
+            // here copy rlt vec.
+            splitHalfVector(&srvIndexVec, &rltVec, &rltIndexVec);
+            LOG_INFO(optAlg->logger, "oprf reciver no need to send psi rlt. ");
+        }
+
+        if (CLIENT_C == optAlg->role)
+        {
+            LOG_INFO(optAlg->logger, "hashbufPsiAlgClient alg over. Client get result=" << rltVec.size() << ",srv index size=" << srvIndexVec.size());
+        }
+        else
+        {
+            rltVec.resize(0);
+            LOG_INFO(optAlg->logger, "hashbufPsiAlgClient alg over. Server get no result=" << rltVec.size());
+        }
+
+        return rlt;
     }
 
 } // namespace xscePsiAlg

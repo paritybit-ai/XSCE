@@ -24,6 +24,7 @@
  * 
  */
 #include "oprf_psi/oprf_psi_client.h"
+#include <malloc.h>
 
 #include <cryptoTools/Network/IOService.h>
 #include <cryptoTools/Network/Endpoint.h>
@@ -34,59 +35,99 @@
 
 namespace oprf_psi
 {
-    using namespace xsce_ose;
+using namespace xsce_ose;
 
-    /*
-     * output: ot_messages
-     */
-    void ReceiverBaseOTs(PRNG &prng, Channel &ch,
-                         std::vector<std::array<block, 2>> &ot_messages)
+int getMd5(unsigned char *input, uint32_t len, unsigned char *output)
+{
+    MD5_CTX x;
+    MD5_Init(&x);
+    MD5_Update(&x, (char *)input, len);
+    MD5_Final(output, &x);
+    return 0;
+}
+// size_t PrintVecHash(const std::vector<uint8_t>& vec) {
+//     std::string rlt(16, 0);
+//     getMd5((unsigned char *)vec.data(), vec.size(), (unsigned char *)rlt.data());
+//     return std::hash<std::string>()(rlt);
+// }
+
+// size_t PrintVecHash(const std::vector<uint64_t>& vec) {
+//     std::string rlt(16, 0);
+//     getMd5((unsigned char *)vec.data(), vec.size() * sizeof(uint64_t), (unsigned char *)rlt.data());
+//     return std::hash<std::string>()(rlt);
+// }
+
+int64_t GetSenderSize(uint64_t receiver_size, const std::string& ip, uint32_t port) {
+    IOService ios;
+    Endpoint ep(ios, ip, port, EpMode::Client, "Run");
+    std::string run_name = std::to_string(port) + "Exchangesize";
+    Channel ch = ep.addChannel(run_name, run_name);
+
+    uint64_t sender_size = 0;
+    ch.send(receiver_size);
+    ch.recv(&sender_size, 1);
+
+    ch.close();
+    ep.stop();
+    ios.stop();
+    return sender_size;
+}
+
+std::vector<std::array<block, 2>> ReceiverBaseOTs(
+    int width, uint64_t inertalSeed, uint64_t inertalSeed1,
+    std::string ip, uint32_t port) {
+    IOService ios;
+    Endpoint ep(ios, ip, port, EpMode::Client, "Run1");
+    std::string run_name = std::to_string(port) + "Run";
+    Channel ch = ep.addChannel(run_name, run_name);
+
+
+    PRNG prng(oc::toBlock(inertalSeed,inertalSeed1));
+    std::vector<std::array<block, 2>> ot_messages(width);
+
+    IknpOtExtSender ot_ext_sender;
+    ot_ext_sender.genBaseOts(prng, ch);
+    ot_ext_sender.send(ot_messages, prng, ch);
+
+    ch.close();
+    ep.stop();
+    ios.stop();
+
+    return ot_messages;
+}
+
+std::vector<block> ComputeRecvSet(u64 receiver_size, u64 h1_length_in_bytes, 
+                        uint64_t commonSeed, uint64_t commonSeed1,
+                        const std::vector<block> &receiver_set) // receiver_set: 用户数据
+{
+    const block common_seed = oc::toBlock(commonSeed, commonSeed1);
+    PRNG common_prng(common_seed);
+    block common_key;
+    AES common_aes;
+    common_prng.get((u8 *)&common_key, sizeof(block));
+    common_aes.setKey(common_key);
+    std::vector<block> recv_set(receiver_size);
+    std::vector<block> aes_input(receiver_size);
+    std::vector<block> aes_output(receiver_size);
+    //RandomOracle is implemented by blake2 hash fucntion.
+    RandomOracle h1(h1_length_in_bytes);
+    u8 h1_output[h1_length_in_bytes];
+    for (u64 i = 0; i < receiver_size; ++i)
     {
-        IknpOtExtSender ot_ext_sender;
-        ot_ext_sender.genBaseOts(prng, ch);
-
-        ot_ext_sender.send(ot_messages, prng, ch);
-        
-
-        LOG_INFO("Receiver base OT finished");
+        h1.Reset();
+        h1.Update((u8 *)(receiver_set.data() + i), sizeof(block));
+        h1.Final(h1_output);
+        aes_input[i] = *(block *)h1_output;
+        recv_set[i] = *(block *)(h1_output + sizeof(block));
     }
-
-    /*
-     * output recv_set
-     */
-    //   .Modified by wumingzi. 2022:08:01,Monday,22:20:16.
-    /*
-    ComputeRecvSet calculates the PRF function F: input is psi elements,output is  a w-dimension vector v.
-    for each output of F v(v[1],v[2],...v[w]) ,v[i]'s value is from 0 to h-1
-    */
-    void ComputeRecvSet(u64 receiver_size, u64 h1_length_in_bytes, const AES &common_aes,
-                        const std::vector<block> &receiver_set,
-                        std::vector<block> &recv_set)
+    common_aes.ecbEncBlocks(aes_input.data(), receiver_size, aes_output.data());
+    for (u64 i = 0; i < receiver_size; ++i)
     {
-        std::vector<block> aes_input(receiver_size);
-        std::vector<block> aes_output(receiver_size);
-
-        //RandomOracle is implemented by blake2 hash fucntion.
-        RandomOracle h1(h1_length_in_bytes);
-        u8 h1_output[h1_length_in_bytes];
-
-        for (u64 i = 0; i < receiver_size; ++i)
-        {
-            h1.Reset();
-            h1.Update((u8 *)(receiver_set.data() + i), sizeof(block));
-            h1.Final(h1_output);
-
-            aes_input[i] = *(block *)h1_output;
-            recv_set[i] = *(block *)(h1_output + sizeof(block));
-        }
-
-        common_aes.ecbEncBlocks(aes_input.data(), receiver_size, aes_output.data());
-        for (u64 i = 0; i < receiver_size; ++i)
-        {
-            recv_set[i] = recv_set[i] ^ aes_output[i];
-        }
+        recv_set[i] = recv_set[i] ^ aes_output[i];
     }
-
+    return recv_set;
+}
+    
     /*
      * output: trans_locations
      */
@@ -143,7 +184,8 @@ namespace oprf_psi
      * output matrixA
      */
     void ComputeMatrixAAndSentMatrix(std::vector<std::array<block, 2>> &ot_messages, u64 w, u64 w_left,
-                                     u64 height_in_bytes, std::vector<std::vector<u8>> &matrix_delta, Channel &ch,
+                                     u64 height_in_bytes, std::vector<std::vector<u8>> &matrix_delta,
+                                     std::unique_ptr<Channel, std::function<void(Channel*)>> &ch,
                                      std::vector<std::vector<u8>> &matrixA)
     {
         for (u64 i = 0; i < w; ++i)
@@ -160,7 +202,16 @@ namespace oprf_psi
                 sent_matrix_vec[j] ^= matrixA[i][j] ^ matrix_delta[i][j];
             }
 
-            ch.asyncSend(std::move(sent_matrix_vec));
+            if (offline::USE_OFFLINE_CHANNEL) {
+                // TODO: 提前resize
+                if (offline::send_data.size() < offline::cur_write_send_data + sent_matrix_vec.size()) {
+                    offline::send_data.resize(offline::cur_write_send_data + sent_matrix_vec.size());
+                }
+                memcpy(offline::send_data.data() + offline::cur_write_send_data, sent_matrix_vec.data(), sent_matrix_vec.size());
+                offline::cur_write_send_data += sent_matrix_vec.size();
+            } else {
+                ch->asyncSend(std::move(sent_matrix_vec));
+            }
         }
     }
 
@@ -185,345 +236,371 @@ namespace oprf_psi
     /*
      * output: all_hashes
      */
-    void OprfPsiClient::ComputeHashOutputs(u64 hash_length_in_bytes, u64 width_in_bytes, u64 receiver_size, const std::vector<std::vector<u8>> &trans_hash_inputs, std::unordered_map<u64, std::vector<std::pair<block, u32>>> &all_hashes)
+std::unordered_map<u64, std::vector<std::pair<block, u32>>> ClientComputeHashOutputs(u64 hash_length_in_bytes, uint64_t bucket2, u64 width, u64 receiver_size,
+                    const std::vector<std::vector<u8>> &trans_hash_inputs, std::vector<xsce_ose::block>* oprf_values)
+{
+    std::unordered_map<u64, std::vector<std::pair<block, u32>>> all_hashes;
+    auto width_in_bytes = (width + 7) / 8;
+    RandomOracle H(hash_length_in_bytes);
+    u8 hash_output[sizeof(block)];
+    std::vector<std::vector<u8>> hash_inputs(bucket2, std::vector<u8>(width_in_bytes));
+    for (u64 low = 0; low < receiver_size; low += bucket2)
     {
-        RandomOracle H(hash_length_in_bytes);
-        u8 hash_output[sizeof(block)];
-        std::vector<std::vector<u8>> hash_inputs(bucket2, std::vector<u8>(width_in_bytes));
-
-        for (u64 low = 0; low < receiver_size; low += bucket2)
+        auto up = low + bucket2 < receiver_size ? low + bucket2 : receiver_size;
+        for (auto j = low; j < up; ++j)
         {
-            auto up = low + bucket2 < receiver_size ? low + bucket2 : receiver_size;
-
+            memset(hash_inputs[j - low].data(), 0, width_in_bytes);
+        }
+        for (u64 i = 0; i < width; ++i)
+        {
             for (auto j = low; j < up; ++j)
             {
-                memset(hash_inputs[j - low].data(), 0, width_in_bytes);
-            }
-
-            for (u64 i = 0; i < width; ++i)
-            {
-                for (auto j = low; j < up; ++j)
-                {
-                    hash_inputs[j - low][i >> 3] |= (u8)((bool)(trans_hash_inputs[i][j >> 3] & (1 << (j & 7)))) << (i & 7);
-                }
-            }
-
-            for (auto j = low; j < up; ++j)
-            {
-                H.Reset();
-                H.Update(hash_inputs[j - low].data(), width_in_bytes);
-                SaveOprfValues((char*)hash_inputs[j - low].data(), width_in_bytes);
-
-                H.Final(hash_output);
-
-                all_hashes[*(u64 *)hash_output].push_back(std::make_pair(*(block *)hash_output, j));
+                hash_inputs[j - low][i >> 3] |= (u8)((bool)(trans_hash_inputs[i][j >> 3] & (1 << (j & 7)))) << (i & 7);
             }
         }
+        for (auto j = low; j < up; ++j)
+        {
+            H.Reset();
+            H.Update(hash_inputs[j - low].data(), width_in_bytes);
+            SaveOprfValues((char*)hash_inputs[j - low].data(), width_in_bytes, oprf_values);
+            H.Final(hash_output);
+            all_hashes[*(u64 *)hash_output].push_back(std::make_pair(*(block *)hash_output, j));
+        }
     }
+    return all_hashes;
+}
 
     /*
      * output: rlt_vec
      */
-    void ReceiveHashOutputsAndComputePSI(u64 bucket2, u64 hash_length_in_bytes, u64 sender_size, Channel &ch,
-                                         const std::unordered_map<u64, std::vector<std::pair<block, u32>>> &all_hashes,
-                                         std::vector<uint64_t> &rlt_vec)
+std::vector<std::pair<uint64_t, uint64_t>> ReceiveHashOutputsAndComputePSI(uint64_t width, uint64_t receiver_size,
+                        const std::vector<std::vector<u8>> &trans_hash_inputs,
+                        u64 bucket2, u64 hash_length_in_bytes, u64 sender_size,
+                        const std::string& ip, uint32_t port,
+                        Logger* logger, std::vector<xsce_ose::block>* oprf_values)
+{
+    auto all_hashes = ClientComputeHashOutputs(hash_length_in_bytes, bucket2, width, receiver_size, trans_hash_inputs, oprf_values);
+
+    // std::vector<uint64_t> rlt_vec;
+    std::vector<std::pair<uint64_t, uint64_t>> rlt_vec;
+
+    // IOService ios;
+    // Endpoint ep(ios, ip, port, EpMode::Client, "Run");
+    // std::string output_name = std::to_string(port) + "output";
+    // Channel ch = ep.addChannel(output_name, output_name);
+    std::unique_ptr<IOService, std::function<void(IOService*)>> ios;
+    std::unique_ptr<Endpoint, std::function<void(Endpoint*)>> ep;
+    std::unique_ptr<Channel, std::function<void(Channel*)>> ch;
+    if (!offline::USE_OFFLINE_CHANNEL) {
+        ios = std::unique_ptr<IOService, std::function<void(IOService*)>>(new IOService(), [](IOService* p) {
+            p->stop();
+            delete p;
+        });
+        ep = std::unique_ptr<Endpoint, std::function<void(Endpoint*)>>(new Endpoint(*ios, ip, port, EpMode::Client, "Run"), [](Endpoint* p) {
+            p->stop();
+            delete p;
+        });
+        std::string output_name = std::to_string(port) + "output";
+        auto tmp_ch = ep->addChannel(output_name, output_name);
+        ch = std::unique_ptr<Channel, std::function<void(Channel*)>>(new Channel(std::move(tmp_ch)), [](Channel* p) {
+            p->close();
+            delete p;
+        });
+    }
+
+    std::vector<u8> recv_buff_vec(bucket2 * hash_length_in_bytes);
+    u8 *recv_buff = recv_buff_vec.data();
+    auto psi = 0;
+    for (u64 low = 0; low < sender_size; low += bucket2)
     {
-        std::vector<u8> recv_buff_vec(bucket2 * hash_length_in_bytes);
-        u8 *recv_buff = recv_buff_vec.data();
-        auto psi = 0;
-        for (u64 low = 0; low < sender_size; low += bucket2)
+        auto up = low + bucket2 < sender_size ? low + bucket2 : sender_size;
+        auto recv_size = (up - low) * hash_length_in_bytes;
+        if (offline::USE_OFFLINE_CHANNEL) {
+            if (offline::recv_data.size() < offline::cur_read_recv_data + recv_size) {
+                std::cout << ">>>>>>>>>>Wrong recv data size:"
+                                << offline::recv_data.size()
+                                << ", current read:" << offline::cur_read_recv_data
+                                << ", to read bytes:" << recv_size;
+            }
+            memcpy(recv_buff, offline::recv_data.data() + offline::cur_read_recv_data, recv_size);
+            offline::cur_read_recv_data += recv_size;
+        } else {
+            ch->recv(recv_buff, recv_size);
+        }
+        for (unsigned long idx = 0; idx < up - low; ++idx)
         {
-            auto up = low + bucket2 < sender_size ? low + bucket2 : sender_size;
-
-            ch.recv(recv_buff, (up - low) * hash_length_in_bytes);
-
-            for (unsigned long idx = 0; idx < up - low; ++idx)
+            u64 map_idx = *(u64 *)(recv_buff + idx * hash_length_in_bytes);
+            auto found = all_hashes.find(map_idx);
+            if (found == all_hashes.end())
+                continue;
+            for (size_t i = 0; i < found->second.size(); ++i)
             {
-                u64 map_idx = *(u64 *)(recv_buff + idx * hash_length_in_bytes);
-
-                auto found = all_hashes.find(map_idx);
-                if (found == all_hashes.end())
-                    continue;
-
-                for (size_t i = 0; i < found->second.size(); ++i)
+                if (memcmp(&(found->second[i].first), recv_buff + idx * hash_length_in_bytes, hash_length_in_bytes) == 0)
                 {
-                    if (memcmp(&(found->second[i].first), recv_buff + idx * hash_length_in_bytes, hash_length_in_bytes) == 0)
-                    {
-                        ++psi;
-                        rlt_vec.push_back(idx + low);
-                        rlt_vec.push_back(found->second[i].second);
-                        //client hash output to generate 128bit aes key.
-                        break;
-                    }
+                    ++psi;
+                    // rlt_vec.push_back(idx + low);
+                    // rlt_vec.push_back(found->second[i].second);
+                    rlt_vec.emplace_back(idx + low, found->second[i].second);
+                    //client hash output to generate 128bit aes key.
+                    break;
                 }
             }
         }
-        LOG_INFO("final psi match rlt=" << psi);
     }
+    LOG_INFO(logger, "final psi match rlt=" << psi);
 
-    //oprf psi alg note according to figure 3 in oprf paper << Private Set Intersection in the Internet Setting From Lightweight Oblivious PRF>>   .Modified by wumingzi. 2022:08:01,Monday,21:47:07.
-    /*
-    the entire protocol is shown in docs/img/oprf_psi_alg.png
-    1）D/A/B are all matrices of the same row/column: w means width and h means height.
-    2）P1 is server/sender, P2 is client/reciever. P1 holds elements x,P2 holds elements y,
-    3）two hash functions: H1 and H2: H1 converts inputs with any length to output with l1 bits,
-        H2 converts inputs with w bits to output  with l2 bits,
-    4) PRF function F: converts the output of H1 with l1 bits to  a w-dimension vector v(v[1],v[2],...v[w]) ,v[i]'s value is from 0 to h-1
-    */
-    //   .Modification over by wumingzi. 2022:08:01,Monday,21:47:11.
-    void OprfPsiClient::Run(PRNG &prng, Channel &ch, block common_seed, const u64 &sender_size,
-                            const u64 &receiver_size,
-                            std::vector<block> &receiver_set, OptAlg* optAlg)
-    {
-        Timer timer;
+    // ch.close();
+    // ep.stop();
+    // ios.stop();
+    return rlt_vec;
+}
 
-        timer.setTimePoint("Receiver start 20210805 002");
+std::vector<std::vector<u8>> ClientExchangeMetrics(uint64_t commonSeed, uint64_t commonSeed1,
+                    const std::string& ip_, uint32_t port_,
+                    uint64_t height, uint64_t width,
+                    uint64_t logHeight, uint64_t receiver_size,
+                    uint32_t bucket1,
+                    const std::vector<block>& recv_set,
+                    std::vector<std::array<block, 2>>& ot_messages) {
+    const block common_seed = oc::toBlock(commonSeed, commonSeed1);
+    PRNG common_prng(common_seed);
+    block common_key;
+    AES common_aes;
+    common_prng.get((u8 *)&common_key, sizeof(block));
+    common_aes.setKey(common_key);
 
-        TimeUnit start, end;
-
-        //logHeight means the number of bits to hold the value of h
-        //location_in_bytes means the location of row in matrix(A/D/B)
-        //width_bucket1 means the number of rows in a block(128 bits)
-
-        auto height_in_bytes = (height + 7) / 8;
-        auto width_in_bytes = (width + 7) / 8;
-        auto location_in_bytes = (logHeight + 7) / 8;
-        auto receiver_size_in_bytes = (receiver_size + 7) / 8;
-        auto shift = (1 << logHeight) - 1;
-        auto width_bucket1 = sizeof(block) / location_in_bytes;
-
-        LOG_INFO("in rcv run: height_in_bytes=" << height_in_bytes << ",width_in_bytes=" << width_in_bytes << ",location_in_bytes=" << location_in_bytes);
-        LOG_INFO("receiver_size_in_bytes=" << receiver_size_in_bytes << ",width_bucket1=" << width_bucket1);
-
-        //TODO
-        //ch.close();
-        IOService ios;
-        Endpoint ep(ios, ip_, port_, EpMode::Client, "Run");
-        std::string run_name = std::to_string(port_) + "Run";
-        ch = ep.addChannel(run_name, run_name);
-
-        //  .Modified by wumingzi. 2022:08:01,Monday,22:14:14.
-        /*
-         server uses ot to get seed to generate matrix C,this is different with paper which transfer an entire column in each OT
-         here only transfer a block in each OT and then use the block as seed to generate a column with h bits.
-         w=width is the column size of matrxA/B/D. so there are width OT transfers in total. server is chooser,client is sender.
-        */
-        ///////////////////// Base OTs ///////////////////////////
-        std::vector<std::array<block, 2>> ot_messages(width);
-        ReceiverBaseOTs(prng, ch, ot_messages);
-        timer.setTimePoint("Receiver base OT finished");
-
-        //////////// Initialization ///////////////////
-
-        PRNG common_prng(common_seed);
-        block common_key;
-        AES common_aes;
-
-        LOG_INFO("Receiver initialized");
-        timer.setTimePoint("Receiver initialized");
-
-        /////////// Transform input /////////////////////
-
-        common_prng.get((u8 *)&common_key, sizeof(block));
-        common_aes.setKey(common_key);
-
-        // calculate the key of PRF function F for each element  .Modified by wumingzi. 2022:08:01,Monday,22:22:16.
-        ///////////////// Comput recv_set ///////////////////
-        std::vector<block> recv_set(receiver_size);
-        ComputeRecvSet(receiver_size, hash1LengthInBytes, common_aes, receiver_set, recv_set);
-
-        LOG_INFO("Receiver set transformed");
-        timer.setTimePoint("Receiver set transformed");
-
-        // matrixA/B/D are all tranposed to store in memory  .Modified by wumingzi. 2022:08:01,Monday,22:24:09.
-        /*
-        as an example of matrix D with h rows and w columns.
-        original matrix is as below:(h rows, w column)
-            d[1][1] d[1][2] ... d[1][w]
-            d[2][1] d[2][2] ... d[2][w]
-
-            d[3][1] d[3][2] ... d[3][w]
-            d[4][1] d[4][2] ... d[4][w]
-        
-            d[h-1][1] d[h-1][2] ... d[h-1][w]
-            d[h][1] d[h][2] ... d[h][w]
-
-        transposed matrix is as below: (w rows ,h columns)
-            d[1][1] d[2][1] ... d[h][1]
-            d[1][2] d[2][2] ... d[h][2]
-
-            d[1][3] d[2][3] ... d[h][3]
-            d[1][4] d[2][4] ... d[h][4]
-        
-            d[1][w-1] d[2][h-1] ... d[h][w-1]
-            d[1][w] d[2][h] ... d[h][w]
-
-        */
-
-        //trans_locations means the value of v[i], which location which row in matrixD to be set to 0 according to (c) of step 1
-        //for transposed matrix, a block holds width_bucket1 rows, so the loop time = width/width_bucket1
-        //matrx_delta is D
-
-        //TODO
-        ch.close();
+    std::unique_ptr<IOService, std::function<void(IOService*)>> ios;
+    std::unique_ptr<Endpoint, std::function<void(Endpoint*)>> ep;
+    std::unique_ptr<Channel, std::function<void(Channel*)>> ch;
+    if (!offline::USE_OFFLINE_CHANNEL) {
+        ios = std::unique_ptr<IOService, std::function<void(IOService*)>>(new IOService(), [](IOService* p) {
+            p->stop();
+            delete p;
+        });
+        ep = std::unique_ptr<Endpoint, std::function<void(Endpoint*)>>(new Endpoint(*ios, ip_, port_, EpMode::Client, "Run"), [](Endpoint* p) {
+            p->stop();
+            delete p;
+        });
         std::string compute_name = std::to_string(port_) + "compute";
-        ch = ep.addChannel(compute_name, compute_name);
-
-        std::vector<std::vector<u8>> trans_locations(width_bucket1, std::vector<u8>(receiver_size * location_in_bytes + sizeof(u32)));
-        std::vector<std::vector<u8>> matrixA(width_bucket1, std::vector<u8>(height_in_bytes));
-        std::vector<std::vector<u8>> matrix_delta(width_bucket1, std::vector<u8>(height_in_bytes));
-        std::vector<std::vector<u8>> trans_hash_inputs(width, std::vector<u8>(receiver_size_in_bytes, 0));
-        for (uint32_t w_left = 0; w_left < width; w_left += width_bucket1)
-        {
-            auto wRight = w_left + width_bucket1 < width ? w_left + width_bucket1 : width;
-            auto w = wRight - w_left;
-
-            //////////// Compute random locations (transposed) ////////////////
-            //recv_set holds the the key of PRF fucntion F for calculating value v of each element of reciever
-            //for each element y,calculate the value v[i] and store them in trans_locations
-            ComputeRandomLocations(common_prng, common_aes, common_key, receiver_size, bucket1,
-                                   recv_set, location_in_bytes, w, trans_locations);
-
-            //////////// Compute matrix Delta /////////////////////////////////
-            ////for each element y,uses the value v to set D[v[i]] of column[i] to zero according to (c) of step 1
-            ComputMatrixDelta(width_bucket1, height_in_bytes, w, receiver_size, shift,
-                              location_in_bytes, trans_locations, matrix_delta);
-
-            //////////////// Compute matrix A & sent matrix ///////////////////////
-            //   .Modified by wumingzi. 2022:08:01,Monday,22:43:58.
-            /* client sends matrix D to server. here is different with paper but gets the same result.
-            1）client generates ot_messages[2]:two random block vectors as seeds, server uses choices to get one block for each column and save to ot_message.
-                client and server use the same prgn to generate matrixA.
-                matrixA/B/Delta are all transposed.
-            
-            2）for client: generate matrix A using ot_messages[0] as seeds, generate matrix sent_matrix_vec using ot_messages[1] as seeds,
-            sent_matrix_vec(sent_matrix_vec_original) saves one column of matrix( width columns in total, suppose current column is i).
-            then for each row j to set sent_matrix_vec as following:
-                sent_matrix_vec[j] = sent_matrix_vec_original ^(matrixA[i][j] ^ matrix_delta[i][j]);
-                
-            3）for server: generate matrix C using ot_messages recieved by OT from server.
-            for the ith column of matrix C.
-                i) if choices[i] = 0, then server get seed from client's ot_messages[0],then matrixC[i] = matrixA[i](server party);
-                ii) if choices[i] = 1, then server get seed from client's ot_messages[1],then matrixC[i] = sent_matrix_vec_original[i]();
-                        matrixC is calculated as following:
-                        matrixC[i][j] ^= recv_matrix[j];
-                        recv_matrix[j] = sent_matrix_vec(from server patry);
-                        finally, matrixC[i][j] = sent_matrix_vec_original[i]^(sent_matrix_vec_original ^(matrixA[i][j] ^ matrix_delta[i][j]))
-                                               =  (matrixA[i][j] ^ matrix_delta[i][j])    
-                        the result is the same as (a) of step 2 in paper.
-
-            */
-            ComputeMatrixAAndSentMatrix(ot_messages, w, w_left, height_in_bytes, matrix_delta, ch, matrixA);
-
-            ///////////////// Compute hash inputs (transposed) /////////////////////
-            // for each element y, calculate the value of A1[v[1]],A2[v[2]]....,Aw[v[w]] and store them in trans_hash_inputs
-            ComputeHashInputs(w, receiver_size, trans_locations, location_in_bytes, shift, w_left, matrixA, trans_hash_inputs);
-        }
-        {
-            u64 sentData = ch.getTotalDataSent();
-            u64 recvData = ch.getTotalDataRecv();
-
-            LOG_INFO("Compute step Receiver sent communication: " << sentData);
-            LOG_INFO("Compute step Receiver received communication: " << recvData);
-        }
-
-        //TODO
-        ch.close();
-        std::string output_name = std::to_string(port_) + "output";
-        ch = ep.addChannel(output_name, output_name);
-
-        LOG_INFO("Receiver matrix sent and transposed hash input computed");
-        timer.setTimePoint("Receiver matrix sent and transposed hash input computed");
-
-        /////////////////// Compute hash outputs ///////////////////////////
-        //for each element y,  use H2 to calculate oprf value ,H2(A1[v[1]],A2[v[2]]....,Aw[v[w]])
-        //recieve oprf value of each element x in server and compare them with oprf value of y to find intersection elements
-        std::unordered_map<u64, std::vector<std::pair<block, u32>>> all_hashes;
-        ComputeHashOutputs(hashLengthInBytes, width_in_bytes, receiver_size,
-                           trans_hash_inputs, all_hashes);
-
-        timer.setTimePoint("Receiver hash outputs computed");
-
-        ///////////////// Receive hash outputs from sender and compute PSI ///////////////////
-        LOG_INFO("begin to compare oprf value.");
-        ReceiveHashOutputsAndComputePSI(bucket2, hashLengthInBytes, sender_size, ch, all_hashes, result_);
-
-        timer.setTimePoint("Receiver intersection computed");
-
-        LOG_INFO("\n" << timer);
-
-        //////////////// Output communication /////////////////
-
-        u64 sentData = ch.getTotalDataSent();
-        u64 recvData = ch.getTotalDataRecv();
-        u64 totalData = sentData + recvData;
-
-        //TODO
-        ch.close();
-        ep.stop();
-        ios.stop();
-
-        LOG_INFO("Final step Receiver sent communication: " << sentData / std::pow(2.0, 20) << " MB");
-        LOG_INFO("Final step Receiver received communication: " << recvData / std::pow(2.0, 20) << " MB");
-        LOG_INFO("Final step Receiver total communication: " << totalData / std::pow(2.0, 20) << " MB");
+        auto tmp_ch = ep->addChannel(compute_name, compute_name);
+        ch = std::unique_ptr<Channel, std::function<void(Channel*)>>(new Channel(std::move(tmp_ch)), [](Channel* p) {
+            p->close();
+            delete p;
+        });
     }
-
-    int64_t OprfPsiClient::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg)
+    // IOService ios;
+    // Endpoint ep(ios, ip_, port_, EpMode::Client, "Run");
+    // std::string compute_name = std::to_string(port_) + "compute";
+    // Channel ch = ep.addChannel(compute_name, compute_name);
+    auto height_in_bytes = (height + 7) / 8;
+    auto location_in_bytes = (logHeight + 7) / 8;
+    auto receiver_size_in_bytes = (receiver_size + 7) / 8;
+    auto shift = (1 << logHeight) - 1;
+    auto width_bucket1 = sizeof(block) / location_in_bytes;
+    std::vector<std::vector<u8>> trans_locations(width_bucket1, std::vector<u8>(receiver_size * location_in_bytes + sizeof(u32)));
+    std::vector<std::vector<u8>> matrixA(width_bucket1, std::vector<u8>(height_in_bytes));
+    std::vector<std::vector<u8>> matrix_delta(width_bucket1, std::vector<u8>(height_in_bytes));
+    std::vector<std::vector<u8>> trans_hash_inputs(width, std::vector<u8>(receiver_size_in_bytes, 0));
+    for (uint32_t w_left = 0; w_left < width; w_left += width_bucket1)
     {
-        uint64_t senderSize = rmtNeles;
-        uint64_t receiverSize = neles;
+        auto wRight = w_left + width_bucket1 < width ? w_left + width_bucket1 : width;
+        auto w = wRight - w_left;
+        //////////// Compute random locations (transposed) ////////////////
+        //recv_set holds the the key of PRF fucntion F for calculating value v of each element of reciever
+        //for each element y,calculate the value v[i] and store them in trans_locations
+        ComputeRandomLocations(common_prng, common_aes, common_key, receiver_size, bucket1,
+                               recv_set, location_in_bytes, w, trans_locations);
+        //////////// Compute matrix Delta /////////////////////////////////
+        ////for each element y,uses the value v to set D[v[i]] of column[i] to zero according to (c) of step 1
+        ComputMatrixDelta(width_bucket1, height_in_bytes, w, receiver_size, shift,
+                          location_in_bytes, trans_locations, matrix_delta);
+        //////////////// Compute matrix A & sent matrix ///////////////////////
+        //   .Modified by wumingzi. 2022:08:01,Monday,22:43:58.
+        /* client sends matrix D to server. here is different with paper but gets the same result.
+        1）client generates ot_messages[2]:two random block vectors as seeds, server uses choices to get one block for each column and save to ot_message.
+            client and server use the same prgn to generate matrixA.
+            matrixA/B/Delta are all transposed.
+        
+        2）for client: generate matrix A using ot_messages[0] as seeds, generate matrix sent_matrix_vec using ot_messages[1] as seeds,
+        sent_matrix_vec(sent_matrix_vec_original) saves one column of matrix( width columns in total, suppose current column is i).
+        then for each row j to set sent_matrix_vec as following:
+            sent_matrix_vec[j] = sent_matrix_vec_original ^(matrixA[i][j] ^ matrix_delta[i][j]);
+            
+        3）for server: generate matrix C using ot_messages recieved by OT from server.
+        for the ith column of matrix C.
+            i) if choices[i] = 0, then server get seed from client's ot_messages[0],then matrixC[i] = matrixA[i](server party);
+            ii) if choices[i] = 1, then server get seed from client's ot_messages[1],then matrixC[i] = sent_matrix_vec_original[i]();
+                    matrixC is calculated as following:
+                    matrixC[i][j] ^= recv_matrix[j];
+                    recv_matrix[j] = sent_matrix_vec(from server patry);
+                    finally, matrixC[i][j] = sent_matrix_vec_original[i]^(sent_matrix_vec_original ^(matrixA[i][j] ^ matrix_delta[i][j]))
+                                           =  (matrixA[i][j] ^ matrix_delta[i][j])    
+                    the result is the same as (a) of step 2 in paper.
+        */
+        ComputeMatrixAAndSentMatrix(ot_messages, w, w_left, height_in_bytes, matrix_delta, ch, matrixA);
+        ///////////////// Compute hash inputs (transposed) /////////////////////
+        // for each element y, calculate the value of A1[v[1]],A2[v[2]]....,Aw[v[w]] and store them in trans_hash_inputs
+        ComputeHashInputs(w, receiver_size, trans_locations, location_in_bytes, shift, w_left, matrixA, trans_hash_inputs);
+    }
+    // {
+    //     u64 sentData = ch.getTotalDataSent();
+    //     u64 recvData = ch.getTotalDataRecv();
+    //     LOG_INFO("Compute step Receiver sent communication: " << sentData);
+    //     LOG_INFO("Compute step Receiver received communication: " << recvData);
+    // }
+    // ch.close();
+    // ep.stop();
+    // ios.stop();
+    return trans_hash_inputs;
+}
 
-        std::string chName = "oprfPsi_000";
-        if (hashLen < 128)
-        {
-            LOG_ERROR("Hash len is invalid, hash len:" << hashLen);
-            return -1;
-        }
-        int dataByteLen = hashLen / (sizeof(uint8_t) * 8);
+std::vector<util::Buf128> IdsToHash(const std::vector<std::string>& ids) {
+    std::vector<util::Buf128> rlt(ids.size());
+    for (size_t i = 0; i < ids.size(); i++)
+    {
+        const std::string& str = ids[i];
+        getMd5((unsigned char *)str.c_str(), str.length(), (unsigned char *)(rlt[i].buf));
+    }
+    return rlt;
+}
 
+std::vector<block> HashIdToBlocks(const uint8_t* hash_ids, int dataByteLen, int id_num) {
+    std::vector<block> block_ids;
+    block_ids.reserve(id_num);
+    for (uint64_t i = 0; i < id_num; ++i)
+    {
         uint64_t *dataBase1;
         uint64_t *dataBase2;
-        uint8_t *dataBuf = hashBuf;
-        LOG_INFO("Client ip:" << ip_ << ", port:" << port_);
-        //IOService ios;
-        //Endpoint ep(ios, ip_, port_, EpMode::Client, chName);
-        Channel ch; //   = ep.addChannel();
-        LOG_INFO("chName=" << chName);
-        LOG_INFO("dataByteLen=" << dataByteLen);
-        // LOG_INFO("common seed=" << std::hex << commonSeed << ":" << commonSeed1);
-        // LOG_INFO("client internal seed=" << std::hex << inertalSeed << ":" << inertalSeed1);
-
-        LOG_INFO("senderSize=" << std::dec << senderSize << ",receiverSize=" << receiverSize);
-
-        std::vector<block> receiverSet(receiverSize);
-        //prng should use 128 bit seed.
-        PRNG prng(oc::toBlock(inertalSeed,inertalSeed1));
-
-        for (uint64_t i = 0; i < receiverSize; ++i)
+        // senderSet[i] = prng.get<block>();
+        if (8 == dataByteLen)
         {
-            if (8 == dataByteLen)
-            {
-                dataBase1 = (uint64_t *)(dataBuf + i * dataByteLen);
-                receiverSet[i] = oc::toBlock(*dataBase1);
-            }
-            else if (16 == dataByteLen)
-            {
-                dataBase1 = (uint64_t *)(dataBuf + i * dataByteLen);
-                dataBase2 = (uint64_t *)(dataBuf + i * dataByteLen + 8);
-                receiverSet[i] = oc::toBlock(*dataBase1, *dataBase2);
-            }
-            else
-            {
-                receiverSet[i] = oc::toBlock((i + 1) * 5);
-            }
+            dataBase1 = (uint64_t *)(hash_ids + i * dataByteLen);
+            block_ids.emplace_back(oc::toBlock(*dataBase1));
         }
+        else if (16 == dataByteLen)
+        {
+            dataBase1 = (uint64_t *)(hash_ids + i * dataByteLen);
+            dataBase2 = (uint64_t *)(hash_ids + i * dataByteLen + 8);
+            block_ids.emplace_back(oc::toBlock(*dataBase1, *dataBase2));
+        }
+        else
+        {
+            block_ids.emplace_back(oc::toBlock((i + 1) * 5));
+        }
+    }
+    return block_ids;
+}
+std::vector<block> HashIdToBlocks(const std::vector<util::Buf128>& hash_ids) {
+    std::vector<block> block_ids;
+    block_ids.reserve(hash_ids.size());
+    if (hash_ids.size() == 0) {
+        return block_ids;
+    } 
+    // return HashIdToBlocks((uint8_t *)hash_ids.data(), sizeof(util::Buf128), hash_ids.size());
+    for (auto& hash_id : hash_ids) {
+        block_ids.emplace_back(oc::toBlock(hash_id.buf[0], hash_id.buf[1]));
+    }
+    return block_ids;
+}
 
-        const block block_common_seed = oc::toBlock(commonSeed, commonSeed1);
-        Run(prng, ch, block_common_seed, senderSize, receiverSize, receiverSet, optAlg);
-        //ch.close();
-        //ep.stop();
-        //ios.stop();
-        return 0;
+std::vector<block> PreDealPSIIds(const std::vector<std::string>& ids) {
+    auto hash_ids = IdsToHash(ids);
+    return HashIdToBlocks(hash_ids);
+}
+
+int64_t OprfPsiClient::OprfPsiAlg(std::vector<util::Buf128>&& hashBuf, uint64_t rmtNeles, OptAlg* optAlg) {
+    uint64_t sender_size = rmtNeles;
+    std::vector<block> receiver_set;
+
+    if (ids_.size() == 0) {
+        if (hashLen < 128)
+        {
+            LOG_ERROR(optAlg->logger, "Hash len is invalid, hash len:" << hashLen);
+            return -1;
+        }
+    
+        // int dataByteLen = hashLen / (sizeof(uint8_t) * 8);
+        receiver_set = HashIdToBlocks(hashBuf);
+    } else {
+        LOG_INFO(optAlg->logger, "oprf client predeal psi ids");
+        receiver_set = PreDealPSIIds(ids_);
+        sender_size = GetSenderSize(receiver_set.size(), ip_, port_);
+    }
+    if (offline::USE_OFFLINE_CHANNEL) {
+        LOG_INFO(optAlg->logger, "oprf client offline mode");
+    } else {
+        LOG_INFO(optAlg->logger, "oprf client online mode");
     }
 
-} // namespace oprf_psi
+    hashBuf.clear();
+    hashBuf.shrink_to_fit();
+    return __OprfPsiAlg(std::move(receiver_set), sender_size, optAlg);
+}
+int64_t OprfPsiClient::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg)
+{
+    uint64_t receiver_size = neles;
+    uint64_t sender_size = rmtNeles;
+    std::vector<block> receiver_set;
+    if (ids_.size() == 0) {
+        if (hashLen < 128)
+        {
+            LOG_ERROR(optAlg->logger, "Hash len is invalid, hash len:" << hashLen);
+            return -1;
+        }
+    
+        int dataByteLen = hashLen / (sizeof(uint8_t) * 8);
+        receiver_set = HashIdToBlocks(hashBuf, dataByteLen, receiver_size);
+    } else {
+        LOG_INFO(optAlg->logger, "oprf client predeal psi ids");
+        receiver_set = PreDealPSIIds(ids_);
+        receiver_size = receiver_set.size();
+        sender_size = GetSenderSize(receiver_size, ip_, port_);
+    }
+    if (offline::USE_OFFLINE_CHANNEL) {
+        LOG_INFO(optAlg->logger, "oprf client offline mode");
+    } else {
+        LOG_INFO(optAlg->logger, "oprf client online mode");
+    }
+    
+    return __OprfPsiAlg(std::move(receiver_set), sender_size, optAlg);
+}
+
+int64_t OprfPsiClient::__OprfPsiAlg(std::vector<block>&& receiver_set, uint64_t sender_size, OptAlg* optAlg) {
+    auto receiver_size = receiver_set.size();
+    LOG_INFO(optAlg->logger, "oprf client ComputeRecvSet");
+    auto recv_set = ComputeRecvSet(receiver_size, hash1LengthInBytes, commonSeed, commonSeed1, receiver_set);
+    // 释放不再使用变量的内存;
+    receiver_set.clear();
+    receiver_set.shrink_to_fit();
+    malloc_trim(0);
+
+    LOG_INFO(optAlg->logger, "oprf client ReceiverBaseOTs");
+    auto ot_messages = ReceiverBaseOTs(width, inertalSeed, inertalSeed1, ip_, port_);
+    LOG_INFO(optAlg->logger, "oprf client ClientExchangeMetrics");
+    auto trans_hash_inputs = ClientExchangeMetrics(commonSeed, commonSeed1, ip_, port_,
+                            height, width, logHeight, receiver_size, bucket1,
+                            recv_set, ot_messages);
+    // 释放不再使用变量的内存;
+    recv_set.clear();
+    recv_set.shrink_to_fit();
+    ot_messages.clear();
+    ot_messages.shrink_to_fit();
+
+    LOG_INFO(optAlg->logger, "oprf client ReceiveHashOutputsAndComputePSI");
+    std::vector<xsce_ose::block>* oprf_values = nullptr;
+    if (save_ov_) {
+        oprf_values = &oprf_values_;
+    }
+    auto pair_result = ReceiveHashOutputsAndComputePSI(width, receiver_size, trans_hash_inputs, bucket2, hashLengthInBytes, sender_size, ip_, port_, optAlg->logger, oprf_values);
+    result_.clear();
+    for_each(pair_result.begin(), pair_result.end(), [this](auto iter){
+        result_.push_back(iter.first);
+        result_.push_back(iter.second);
+    });
+    //ch.close();
+    //ep.stop();
+    //ios.stop();
+    return 0;
+}
+
+} // namespace oprf_psi_offline

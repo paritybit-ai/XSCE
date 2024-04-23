@@ -67,6 +67,10 @@
 
 namespace util
 {
+
+    struct Buf128 {
+        uint64_t buf[2];
+    };
     using OptAlg = xsce_ose::OptAlg;
     //here for  solo pir project which will be open sourced.
     class TimeUtils
@@ -140,6 +144,7 @@ namespace util
     uint64_t getRand(uint64_t max);
     int64_t encStrVec2BufIndex(std::vector<std::string> &strVec, int64_t strLen, std::vector<uint64_t> seed, uint64_t **dataBuf, uint64_t **keyBuf, std::vector<std::int64_t> &indexVec);
     int64_t convertStrVec2Md5Index(std::vector<std::string> &strVec, uint32_t *&buf, std::vector<std::int64_t> &indexVec);
+    int64_t convertStrVec2Md5Index(const std::vector<std::string> &strVec, std::vector<Buf128>* buf);
     int64_t convStr2Buf(std::string &str, uint64_t *buf, int64_t len);
 
     int64_t encStr2BufIndex(std::vector<std::string> *strVec, int64_t strLen, std::vector<uint64_t> seed, uint64_t **dataBuf, uint64_t *keyBuf, std::vector<std::int64_t> *indexVec);

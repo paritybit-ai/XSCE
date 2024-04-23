@@ -25,12 +25,36 @@
  */
 
 #include "pir.h"
+#include <malloc.h>
 #include "toolkits/util/include/xlog.h"
 #include "common/pub/include/util.h"
 #include "PSI/include/psi.h"
 #include "toolkits/util/include/task_status.h"
 namespace xscePirAlg
 {
+
+int64_t pirAesDecode(uint8_t *cipher_buf, uint8_t *key_buf,
+                         int msg_aes_len,
+                         const std::vector<int64_t> &cli_rlt,
+                         const std::vector<int64_t> &srv_rlt,
+                         std::vector<std::string> *str_rlt, Logger* logger);
+    template <typename T>
+std::string vec2Str(const std::vector<T>& vec){
+    std::string str;
+    for (auto& i : vec) {
+        str += std::to_string(i) + ",";
+    }
+    return str;
+}
+template <>
+std::string vec2Str<std::string>(const std::vector<std::string>& vec){
+    std::string str;
+    for (auto& i : vec) {
+        str += i + ",";
+    }
+    return str;
+}
+
     using namespace std;
     using namespace oc;
     using namespace util;
@@ -132,7 +156,7 @@ namespace xscePirAlg
             LOG_INFO(optAlg->logger, "task_status stopped, taks id =" << optAlg->taskId);
             return OSE_ALG_INPUT_CONFIG_ERROR;
         }
-        // for both client & server to get the col column data as index data(psi input)
+        // for both client & server to get the col column data as index data(psi inputreadPsiLabelDataFile)
         LOG_INFO(optAlg->logger, "terminal pir alg. psi str vector size=" << psiStr.size() << " . ");
 
         if (isServer)
@@ -148,7 +172,7 @@ namespace xscePirAlg
         LOG_INFO(optAlg->logger, "terminal pir alg. data hash byte len=" << hashByteLen);
 
         // 2. convert data to hashBuf
-        uint32_t *hashBuf = nullptr;
+        // uint32_t *hashBuf = nullptr;
         uint64_t realElementNum = 0;
         int64_t idxCnt = psiStr.size();
 
@@ -161,7 +185,9 @@ namespace xscePirAlg
         std::vector<int64_t> indexId(idxCnt);
 
         initSortIndex(indexId, idxCnt);
-        realElementNum = convertStrVec2Md5Index(psiStr, hashBuf, indexId);
+        std::vector<util::Buf128> hashBuf;
+        realElementNum = convertStrVec2Md5Index(psiStr, &hashBuf);
+        // realElementNum = convertStrVec2Md5Index(psiStr, hashBuf, indexId);
 
         // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
         // if (realElementNum > 1)
@@ -188,7 +214,7 @@ namespace xscePirAlg
         data_info.secu_key = secu_key;
         data_info.role = optAlg->role;
 
-        data_info.id_hash_buf = hashBuf;
+        data_info.id_hash_buf = std::move(hashBuf);
         data_info.id_hash_byte_len = hashByteLen;
         data_info.id_num = realElementNum;
 
@@ -198,10 +224,10 @@ namespace xscePirAlg
         data_info.bucket_pool_num = pool_num;
         data_info.index_char_pos = optAlg->intMul;
 
-        data_info.original_id_str = &psiStr;
+        data_info.original_id_str = std::move(psiStr);
         if (isServer)
         {
-            data_info.original_data_str = &dataRowVec;
+            data_info.original_data_str = std::move(dataRowVec);
 
             if (optAlg->dataRowLen > 0)
             {
@@ -383,10 +409,63 @@ namespace xscePirAlg
         return rlt;
     }
 
+inline int64_t GetCurMemoryUse() {
+        #define VMRSS_LINE 22
+        auto pid = getpid();
+        char file_name[64] = { 0 };
+        FILE* fd;
+        char line_buff[512] = { 0 };
+        sprintf(file_name, "/proc/%d/status", pid);
+
+        fd = fopen(file_name, "r");
+        if (nullptr == fd)
+            return 0;
+
+        char name[64];
+        int vmrss = 0;
+        for (int i = 0; i < VMRSS_LINE - 1; i++)
+            fgets(line_buff, sizeof(line_buff), fd);
+
+        fgets(line_buff, sizeof(line_buff), fd);
+        sscanf(line_buff, "%s %d", name, &vmrss);
+        fclose(fd);
+
+        // cnvert VmRSS from KB to MB
+        return vmrss / 1024.0;
+    }
     int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &id_vec,
                                          std::vector<std::string> &data_vec,
                                          std::vector<int64_t> &psi_cli_rlt,
-                                         std::vector<int64_t> &psi_srv_rlt)
+                                         std::vector<int64_t> &psi_srv_rlt) {
+        std::vector<std::string> tmp = id_vec;
+        std::vector<std::string> tmp_data = data_vec;
+        std::vector<PirOutput> output;
+        auto rlt = pirStr2PartyAlgTerminalBatch(optAlg, std::move(tmp), std::move(tmp_data), &output);
+        if (rlt == -1) {
+            return rlt;
+        }
+        std::vector<int64_t> psi_rlt;
+        psi_rlt.reserve(output.size());
+        for (auto& out : output) {
+            psi_rlt.push_back(out.index);
+        }
+        if (0 == optAlg->role) {
+            psi_srv_rlt = std::move(psi_rlt);
+        } else {
+            psi_cli_rlt = std::move(psi_rlt);
+        }
+        return rlt;
+    }
+    int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &id_vec,
+                                         std::vector<std::string> &data_vec,
+                                         std::vector<PirOutput>* output) {
+        std::vector<std::string> tmp = id_vec;
+        std::vector<std::string> tmp_data = data_vec;
+        return pirStr2PartyAlgTerminalBatch(optAlg, std::move(tmp), std::move(tmp_data), output);
+    }
+    int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &&id_vec,
+                                         std::vector<std::string> &&data_vec,
+                                         std::vector<PirOutput>* output)
     {
         int64_t rlt = -1;
         std::string rltfn = "";
@@ -399,8 +478,9 @@ namespace xscePirAlg
         TimeUtils t1, t2, t3;
 
         // for data reading
-        std::vector<std::string> &psiStr = id_vec;
-        std::vector<std::string> &dataRowVec = data_vec;
+        // std::vector<std::string> &psiStr = id_vec;
+        std::vector<std::string> psiStr = std::move(id_vec);
+        std::vector<std::string> dataRowVec = std::move(data_vec);
 
         if (nullptr == optAlg)
         {
@@ -448,28 +528,30 @@ namespace xscePirAlg
         LOG_INFO(optAlg->logger, "terminal pir alg. data hash byte len=" << hashByteLen);
 
         // 2. convert data to hashBuf
-        uint32_t *hashBuf = nullptr;
         uint64_t realElementNum = 0;
         int64_t idxCnt = psiStr.size();
 
-        std::vector<uint64_t> seedVec;
-        uint64_t seed = optAlg->commonSeed;
-        uint64_t seed2 = optAlg->inertalSeed;
-        uint64_t seed3 = optAlg->inertalSeed1;
-        seedVec.push_back(seed2);
-        seedVec.push_back(seed3);
+        // std::vector<uint64_t> seedVec;
+        // uint64_t seed = optAlg->commonSeed;
+        // uint64_t seed2 = optAlg->inertalSeed;
+        // uint64_t seed3 = optAlg->inertalSeed1;
+        // seedVec.push_back(seed2);
+        // seedVec.push_back(seed3);
 
-        std::vector<int64_t> indexId(idxCnt);
+        // std::vector<int64_t> indexId(idxCnt);
 
-        initSortIndex(indexId, idxCnt);
-        realElementNum = convertStrVec2Md5Index(psiStr, hashBuf, indexId);
+        // initSortIndex(indexId, idxCnt);
+        // realElementNum = convertStrVec2Md5Index(psiStr, hashBuf, indexId);
+        std::vector<util::Buf128> hashBuf;
+        realElementNum = convertStrVec2Md5Index(psiStr, &hashBuf);
+        // hashBuf = (uint32_t*)hash_buf.data();
 
-        if (realElementNum > 1)
-        {
-            int showCnt = realElementNum > maxShowCnt ? maxShowCnt : realElementNum;
-            // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
-            // showHexValue(hashBuf, 4, showCnt);
-        }
+        // if (realElementNum > 1)
+        // {
+        //     int showCnt = realElementNum > maxShowCnt ? maxShowCnt : realElementNum;
+        //     // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+        //     // showHexValue(hashBuf, 4, showCnt);
+        // }
 
         // 3. split data to bucket pool according specified rule
         int secu_key = optAlg->secuK;
@@ -487,17 +569,18 @@ namespace xscePirAlg
 
         data_info.secu_key = secu_key;
         data_info.role = optAlg->role;
-        data_info.id_hash_buf = hashBuf;
+        data_info.id_hash_buf = std::move(hashBuf);
         data_info.id_hash_byte_len = hashByteLen;
         data_info.id_num = realElementNum;
-        data_info.original_index_id = &indexId;
+        // data_info.original_index_id = &indexId;
         data_info.bucket_pool_size = pool_size;
         data_info.bucket_pool_num = pool_num;
         data_info.index_char_pos = optAlg->intMul;
-        data_info.original_id_str = &psiStr;
+        data_info.original_id_str = std::move(psiStr);
+        data_info.original_data_str = std::move(dataRowVec);
         if (isServer)
         {
-            data_info.original_data_str = &dataRowVec;
+            // data_info.original_data_str = std::move(dataRowVec);
 
             if (optAlg->dataRowLen > 0)
             {
@@ -521,7 +604,16 @@ namespace xscePirAlg
             }
         }
 
-        splitIdBufBucket(&data_info);
+        splitIdBufBucket(&data_info, optAlg->logger);
+        data_info.id_hash_buf.clear();
+        data_info.id_hash_buf.shrink_to_fit();
+        data_info.original_id_str.clear();
+        data_info.original_id_str.shrink_to_fit();
+        data_info.original_data_str.clear();
+        data_info.original_data_str.shrink_to_fit();
+
+        // malloc_trim(0);
+
         pool_num = data_info.bucket_pool_num;
         LOG_INFO(optAlg->logger, "pool_num=" << pool_num);
 
@@ -529,7 +621,7 @@ namespace xscePirAlg
         std::vector<std::vector<std::string>> pir_rlt(pool_num);
         std::vector<std::vector<std::int64_t>> pir_cli_rlt(pool_num);
         std::vector<std::vector<std::int64_t>> pir_srv_rlt(pool_num);
-        std::vector<std::string> total_pir_rlt;
+        // std::vector<std::string> total_pir_rlt;
 
         data_info.pir_rlt = &pir_rlt;
         data_info.pir_cli_rlt = &pir_cli_rlt;
@@ -687,11 +779,12 @@ namespace xscePirAlg
         //. save pir alg result for client only.
         uint32_t pir_type = 0;
         const int64_t psi_no_server_result = 2001;
+
+        // std::vector<std::string> cli_pir_rlt;
         if (!isServer)
         {
-            savePirRlt2StrVec(&pir_rlt, data_vec);
-            savePsiDataRlt2Vec(&data_info, psi_cli_rlt);
-            LOG_INFO(optAlg->logger, "finla pir rlt. data_vec size=" << data_vec.size() << ",psi_cli_rlt size=" << psi_cli_rlt.size() << ",psi_srv_rlt size=" << psi_srv_rlt.size());
+            savePsiDataRlt2Vec(&data_info, *(data_info.pir_cli_rlt), output);
+            LOG_INFO(optAlg->logger, "client output size=" << output->size() << ", pir_srv_rlt size:" << pir_srv_rlt.size());
             if (pir_type != optAlg->type && psi_no_server_result != optAlg->type)
             {
                 LOG_INFO(optAlg->logger, "not pir mode,client send psi rlt to server");
@@ -705,7 +798,8 @@ namespace xscePirAlg
             {
                 LOG_INFO(optAlg->logger, "not pir mode,server begin to rcv psi rlt from server");
                 rcvInt64Mtx(optAlg, pir_srv_rlt);
-                savePsiDataRlt2Vec(&data_info, pir_srv_rlt, psi_srv_rlt); // psi_srv_rlt is not used for client party.
+                // savePsiDataRlt2Vec(&data_info, pir_srv_rlt, psi_srv_rlt); // psi_srv_rlt is not used for client party.
+                savePsiDataRlt2Vec(&data_info, pir_srv_rlt, output);
             }
         }
 
@@ -721,15 +815,15 @@ namespace xscePirAlg
         if (nullptr == data_info)
             return;
 
-        if (nullptr != data_info->id_hash_buf)
-            free(data_info->id_hash_buf);
+        // if (nullptr != data_info->id_hash_buf)
+        //     free(data_info->id_hash_buf);
 
-        int len = data_info->bucket_pool_buf.size();
-        for (int64_t i = 0; i < len; i++)
-        {
-            if (nullptr != data_info->bucket_pool_buf.at(i))
-                free(data_info->bucket_pool_buf.at(i));
-        }
+        // int len = data_info->bucket_pool_buf.size();
+        // for (int64_t i = 0; i < len; i++)
+        // {
+        //     if (nullptr != data_info->bucket_pool_buf.at(i))
+        //         free(data_info->bucket_pool_buf.at(i));
+        // }
 
         return;
     }
@@ -789,39 +883,41 @@ namespace xscePirAlg
 
         // here to extract data info.
 
-        uint8_t *data_buf = nullptr;
+        // uint8_t *data_buf = nullptr;
         int64_t pool_volume = data_info->bucket_pool_vol.at(pool_num);
         uint64_t hash_byte_length = data_info->id_hash_byte_len;
         bool mock_data_flag = true; // true means simulate one fault id&data for pir alg when this pool is empty.
 
-        uint8_t idle_id[hash_byte_length];
-        std::vector<std::string> *data_row_vec = nullptr;
-        std::vector<std::string> idle_data_row;
 
         // here to prepare idle data for empty pool.
-        if (is_server)
-        {
-            idle_data_row.resize(hash_byte_length);
-            for (uint64_t i = 0; i < hash_byte_length; i++)
-            {
-                idle_data_row.at(i) = '0' + data_info->idle_data_row;
-                idle_id[i] = data_info->idle_id_str_srv;
-            }
-        }
-        else
-        {
-            for (uint64_t i = 0; i < hash_byte_length; i++)
-            {
-                idle_id[i] = data_info->idle_id_str_cli;
-            }
-        }
+        // if (is_server)
+        // {
+        //     idle_data_row.resize(sizeof(util::Buf128));
+        //     for (uint64_t i = 0; i < sizeof(util::Buf128); i++)
+        //     {
+        //         idle_data_row.at(i) = '0' + data_info->idle_data_row;
+        //         idle_id[i] = data_info->idle_id_str_srv;
+        //     }
+        // }
+        // else
+        // {
+        //     for (uint64_t i = 0; i < sizeof(util::Buf128); i++)
+        //     {
+        //         idle_id[i] = data_info->idle_id_str_cli;
+        //     }
+        // }
 
+        std::vector<util::Buf128> data_buf;
+        std::vector<std::string> data_row_vec;
+        // std::vector<std::string> idle_data_row;
         if (pool_volume > 0)
         {
-            data_buf = (uint8_t *)data_info->bucket_pool_buf.at(pool_num);
-            if (is_server)
+            // data_buf = (uint8_t *)data_info->bucket_pool_buf.at(pool_num);
+            data_buf = std::move(data_info->bucket_pool_buf[pool_num]);
+            auto pir_type = 0;
+            if (is_server && pir_type == optAlg->type)
             {
-                data_row_vec = &data_info->bucket_pool_data_row.at(pool_num);
+                data_row_vec = std::move(data_info->bucket_pool_data_row.at(pool_num));
             }
         }
         else
@@ -829,12 +925,31 @@ namespace xscePirAlg
             LOG_INFO(optAlg->logger, "this pool is empty.");
             if (mock_data_flag)
             {
-                data_buf = idle_id;
-                pool_volume = 1;
+                uint8_t idle_id[sizeof(util::Buf128)];
                 if (is_server)
                 {
-                    data_row_vec = &idle_data_row;
+                    // idle_data_row.resize(sizeof(util::Buf128));
+                    data_row_vec.emplace_back(std::string(sizeof(util::Buf128), '0' + data_info->idle_data_row));
+                    for (uint64_t i = 0; i < sizeof(util::Buf128); i++)
+                    {
+                        // idle_data_row.at(i) = '0' + data_info->idle_data_row;
+                        idle_id[i] = data_info->idle_id_str_srv;
+                    }
                 }
+                else
+                {
+                    for (uint64_t i = 0; i < sizeof(util::Buf128); i++)
+                    {
+                        idle_id[i] = data_info->idle_id_str_cli;
+                    }
+                }
+                data_buf.emplace_back(*(util::Buf128*)idle_id);
+
+                pool_volume = 1;
+                // if (is_server)
+                // {
+                //     data_row_vec = &idle_data_row;
+                // }
             }
         }
 
@@ -858,7 +973,7 @@ namespace xscePirAlg
         alg.pir_srv_rlt = &pir_srv_rlt;
         alg.pir_cli_rlt = &pir_cli_rlt;
 
-        alg.id_hash_buf = data_buf;
+        alg.id_hash_buf = std::move(data_buf);
         alg.id_num = pool_volume;
         alg.hash_byte_len = hash_byte_length;
         alg.pool_index = pool_num;
@@ -867,16 +982,16 @@ namespace xscePirAlg
 
         if (is_server)
         {
-            alg.data_row = data_row_vec;
+            alg.data_row = &data_row_vec;
         }
 
         // here to split bucket in current pool and remove unused bucket from data_buf.
-        use_bucket_flag = false;
-        if (use_bucket_flag)
-        {
-            LOG_INFO(optAlg->logger, "use pir pool split bucket ");
-            pirPoolSplitBucket(optAlg, &alg);
-        }
+        // use_bucket_flag = false;
+        // if (use_bucket_flag)
+        // {
+        //     LOG_INFO(optAlg->logger, "use pir pool split bucket ");
+        //     pirPoolSplitBucket(optAlg, &alg);
+        // }
 
         if (optAlg->task_status.IsStop())
         {
@@ -912,8 +1027,10 @@ namespace xscePirAlg
         return rlt;
     }
 
+    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num, std::vector<block>* oprf_values);
     int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num)
     {
+        /*
         // optAlg->task_status.SetProgressPerBucket(20, pool_num);
         int64_t rlt = -1;
         int64_t tmp_rlt = -1;
@@ -1016,9 +1133,18 @@ namespace xscePirAlg
             // }
 
             // here copy psi rlt for client party
-            copyUint642Int64Vec(&psi_result, psi_cli_rlt);
-            copyUint642Int64Vec(&srv_resutl_index, psi_srv_rlt);
+            // copyUint642Int64Vec(&psi_result, psi_cli_rlt);
+            // copyUint642Int64Vec(&srv_resutl_index, psi_srv_rlt);
+            psi_cli_rlt->clear();
+            psi_srv_rlt->clear();
+            psi_cli_rlt->reserve(psi_result.size());
+            psi_srv_rlt->reserve(srv_resutl_index.size());
+            for (auto& item : psi_result) {psi_cli_rlt->emplace_back(item);}
+            for (auto& item : srv_resutl_index) {psi_srv_rlt->emplace_back(item);}
         }
+        */
+        std::vector<block> oprf_values;
+        auto rlt = psi2PartyAlgTerminalBasic(optAlg, alg_info, pool_num, &oprf_values);
 
         // 进度1
         //  optAlg->task_status.SetProgressPerBucket(40, pool_num);
@@ -1031,7 +1157,27 @@ namespace xscePirAlg
             key_buf_vec.push_back(tmp[0]);
             key_buf_vec.push_back(tmp[1]);
         }
-        key_buf = key_buf_vec.data();
+        uint64_t * key_buf = key_buf_vec.data();
+        uint64_t *encode_buf = nullptr; // save encrypted data string.
+        uint64_t *decode_buf = nullptr; // client save server's ciphertext data.
+        uint64_t *cipher_buf = nullptr;
+        std::string ch_name = "pirTerminalBatch";
+        uint64_t encode_len = alg_info->max_str_len;
+        uint64_t str_encode_len = encode_len;
+        uint64_t str_decode_len = 0;
+        uint64_t total_encode_buf_len = 0;
+        uint64_t aes_len = 0;
+        uint64_t str_num = 0;
+        int64_t id_num = alg_info->id_num;
+        std::vector<int64_t> index_id(id_num);
+        initSortIndex(index_id, id_num);
+        std::vector<uint64_t> seedVec;
+        uint64_t seed = optAlg->commonSeed;
+        seedVec.push_back(seed);
+        uint64_t max_show_cnt = optAlg->showCnt;
+        bool is_server = (0 == optAlg->role) ? true : false;
+
+        std::vector<std::string> *data_row = alg_info->data_row;
         if (is_server)
         {
             encStr2BufIndex(data_row, encode_len, seedVec, &encode_buf, key_buf, &index_id);
@@ -1041,7 +1187,7 @@ namespace xscePirAlg
             str_encode_len = 2 * aes_len; // single string enc length in uint64 size.
             total_encode_buf_len = str_encode_len * str_num;
 
-            rmt_id_num = getUint32FromRmt(optAlg, str_encode_len, ch_name);
+            auto rmt_id_num = getUint32FromRmt(optAlg, str_encode_len, ch_name);
             LOG_INFO(optAlg->logger, "srv get rmt id_num=" << rmt_id_num);
             // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
             // for (uint64_t i = 0; i < str_num && i < max_show_cnt; i++)
@@ -1063,7 +1209,7 @@ namespace xscePirAlg
         //. server send cipher data to client
         if (is_server)
         {
-            tmp_rlt = srvSendBuf(optAlg, encode_buf, total_encode_buf_len);
+            auto tmp_rlt = srvSendBuf(optAlg, encode_buf, total_encode_buf_len);
             if (tmp_rlt < 0)
             {
                 LOG_ERROR("error in execution of srvSendBuf function");
@@ -1071,7 +1217,7 @@ namespace xscePirAlg
         }
         else
         {
-            tmp_rlt = cliRcvBuf(optAlg, &decode_buf, &total_encode_buf_len);
+            auto tmp_rlt = cliRcvBuf(optAlg, &decode_buf, &total_encode_buf_len);
             if (tmp_rlt < 0)
             {
                 LOG_ERROR("error in execution of cliRcvBuf function");
@@ -1092,23 +1238,26 @@ namespace xscePirAlg
         // }
 
         //. client run ot to get aes key from server
-        if (mock_idle_pir)
-        {
-            if (0 == match_id_num)
-            {
-                LOG_INFO(optAlg->logger, "need to mock pir query with server.");
-                match_id_num = 1;
-                psi_result.push_back(0);
-                srv_resutl_index.push_back(0);
-            }
-        }
+        // bool mock_idle_pir = false;
+        // if (mock_idle_pir)
+        // {
+        //     if (0 == match_id_num)
+        //     {
+        //         LOG_INFO(optAlg->logger, "need to mock pir query with server.");
+        //         match_id_num = 1;
+        //         psi_result.push_back(0);
+        //         srv_resutl_index.push_back(0);
+        //     }
+        // }
 
         //. server decode cipher data to plaintext data by aes key.
         if (!is_server)
         {
-            tmp_rlt = pirAesDecode((uint8_t *)decode_buf, (uint8_t *)key_buf,
-                                   str_decode_len, psi_result, srv_resutl_index, result);
-
+            std::vector<std::string> *result = alg_info->result;            // hold the id string for both srv&cli
+            std::vector<int64_t> *psi_cli_rlt = alg_info->pir_cli_rlt; // hold the id string for both srv&cli
+            std::vector<int64_t> *psi_srv_rlt = alg_info->pir_srv_rlt; // hold the id string for both srv&cli
+            auto tmp_rlt = pirAesDecode((uint8_t *)decode_buf, (uint8_t *)key_buf,
+                                   str_decode_len, *psi_cli_rlt, *psi_srv_rlt, result, optAlg->logger);
             if (tmp_rlt < 0)
             {
                 LOG_INFO(optAlg->logger, "pirAesDecode error");
@@ -1136,7 +1285,7 @@ namespace xscePirAlg
     }
 
     // pir alg supports psi modes  .Modified by wumingzi. 2022:12:17,Saturday,14:22:20.
-    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num)
+    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num, std::vector<block>* oprf_values)
     {
         int64_t rlt = -1;
         if (nullptr == optAlg)
@@ -1154,28 +1303,27 @@ namespace xscePirAlg
         bool is_server = (0 == optAlg->role) ? true : false;
 
         int64_t id_num = alg_info->id_num;
-        uint8_t *hash_buf = alg_info->id_hash_buf;
-        std::vector<std::string> *data_row = alg_info->data_row;        // hold the data string for srv
-        std::vector<std::string> *result = alg_info->result;            // hold the id string for both srv&cli
+        // std::vector<std::string> *data_row = alg_info->data_row;        // hold the data string for srv
+        // std::vector<std::string> *result = alg_info->result;            // hold the id string for both srv&cli
         std::vector<std::int64_t> *psi_cli_rlt = alg_info->pir_cli_rlt; // hold the id string for both srv&cli
         std::vector<std::int64_t> *psi_srv_rlt = alg_info->pir_srv_rlt; // hold the id string for both srv&cli
 
-        if ((nullptr == hash_buf || nullptr == result))
-        {
-            LOG_ERROR(optAlg->logger, "hash_buf/result is null.exit");
-            return rlt;
-        }
+        // if ((nullptr == hash_buf || nullptr == result))
+        // {
+        //     LOG_ERROR(optAlg->logger, "hash_buf/result is null.exit");
+        //     return rlt;
+        // }
         if ((nullptr == psi_cli_rlt || nullptr == psi_srv_rlt))
         {
             LOG_ERROR(optAlg->logger, "psi_cli_rlt/psi_srv_rlt is null.exit");
             return rlt;
         }
 
-        if (is_server && nullptr == data_row)
-        {
-            LOG_ERROR(optAlg->logger, "data_row is null.exit");
-            return rlt;
-        }
+        // if (is_server && nullptr == data_row)
+        // {
+        //     LOG_ERROR(optAlg->logger, "data_row is null.exit");
+        //     return rlt;
+        // }
 
         // for future.here to check rmt id_num is whether or not.
 
@@ -1186,10 +1334,10 @@ namespace xscePirAlg
         //  uint64_t *cipher_buf = nullptr;
 
         std::string ch_name = "pirTerminalBatch";
-        std::vector<int64_t> index_id(id_num);
-        std::vector<uint64_t> seedVec;
-        uint64_t seed = optAlg->commonSeed;
-        seedVec.push_back(seed);
+        // std::vector<int64_t> index_id(id_num);
+        // std::vector<uint64_t> seedVec;
+        // uint64_t seed = optAlg->commonSeed;
+        // seedVec.push_back(seed);
         uint64_t max_show_cnt = optAlg->showCnt;
 
         // for psi use
@@ -1199,19 +1347,25 @@ namespace xscePirAlg
 
         // 进度1
         optAlg->task_status.SetProgressPerBucket(40, pool_num);
-        initSortIndex(index_id, id_num);
+        // initSortIndex(index_id, id_num);
         LOG_INFO(optAlg->logger, "pir2PartyAlgTerminalBasic. id_num=" << id_num);
 
         // 进度2
         optAlg->task_status.SetProgressPerBucket(60, pool_num);
         //. run psi to get server data index which meets client query id
         // for now,only use oprf psi alg  .Modified by wumingzi/wumingzi. 2022:04:21,Thursday,21:35:12.
-        std::vector<block> oprf_values;
+        // std::vector<block> oprf_values;
+        if (alg_info->id_hash_buf.size() == 0)
+        {
+            LOG_ERROR(optAlg->logger, "hash_buf/result is null.exit");
+            return rlt;
+        }
+        // uint8_t *hash_buf = (uint8_t*)alg_info->id_hash_buf.data();
         {
             LOG_INFO(optAlg->logger, "use oprf psi for pir alg.");
             LOG_INFO(optAlg->logger, "begin to show hash buf. before psi...");
             showBlk(1, 2);
-            xscePsiAlg::hashbufPsiAlgClient((uint64_t *)hash_buf, id_num, psi_result, optAlg, srv_resutl_index, oprf_values);
+            xscePsiAlg::hashbufPsiAlgClient(std::move(alg_info->id_hash_buf), psi_result, optAlg, srv_resutl_index, oprf_values);
             showBlk(2, 2);
             LOG_INFO(optAlg->logger, "begin to show hash buf. after psi...");
             showBlk(1, 2);
@@ -1231,11 +1385,6 @@ namespace xscePirAlg
                 LOG_INFO(optAlg->logger, "hash buf psi alg result is error. psiRlt.size()=" << psi_result.size() << ",srvRLtVec.size()=" << srv_resutl_index.size());
                 return rlt;
             }
-            // for data security,disable printing result  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
-            // for (uint64_t i = 0; i < match_id_num && i < max_show_cnt; i++)
-            // {
-            //     LOG_INFO(i << ":idx=" << psi_result[i] << ",srv idx=" << srv_resutl_index.at(i));
-            // }
 
             // here copy psi rlt for client party
             copyUint642Int64Vec(&psi_result, psi_cli_rlt);
@@ -1246,6 +1395,9 @@ namespace xscePirAlg
         optAlg->task_status.SetProgressPerBucket(90, pool_num);
         rlt = 0;
         return rlt;
+    }
+    int64_t psi2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num) {
+        return psi2PartyAlgTerminalBasic(optAlg, alg_info, pool_num, nullptr);
     }
     //   .Modification over by wumingzi. 2022:12:17,Saturday,14:22:31.
 
@@ -1265,577 +1417,578 @@ namespace xscePirAlg
     }
 
     // split pool id_hash_buf to multiple buckets according to security key(which is usually 100 or 1000,000)
-    int64_t pirPoolSplitBucket(OptAlg *optAlg, PirAlgInfo *alg_info)
-    {
-        int64_t rlt = -1;
-        if (nullptr == optAlg)
-        {
-            LOG_ERROR("pirPoolSplitBucket input optAlg is null");
-            return rlt;
-        }
+    // int64_t pirPoolSplitBucket(OptAlg *optAlg, PirAlgInfo *alg_info)
+    // {
+    //     int64_t rlt = -1;
+    //     if (nullptr == optAlg)
+    //     {
+    //         LOG_ERROR("pirPoolSplitBucket input optAlg is null");
+    //         return rlt;
+    //     }
 
-        if (nullptr == alg_info)
-        {
-            LOG_ERROR(optAlg->logger, "pirPoolSplitBucket input alg_info is null");
-            return rlt;
-        }
-        bool is_server = (0 == optAlg->role) ? true : false;
+    //     if (nullptr == alg_info)
+    //     {
+    //         LOG_ERROR(optAlg->logger, "pirPoolSplitBucket input alg_info is null");
+    //         return rlt;
+    //     }
+    //     bool is_server = (0 == optAlg->role) ? true : false;
 
-        // first read parameters from alg_info
-        uint8_t *id_hash_buf = alg_info->id_hash_buf;    // id hash number buf.
-        int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
-        int64_t id_num = alg_info->id_num;               // the number of id string.
-        int secu_key = alg_info->secu_key;
-        int64_t bucket_num = 1;
-        uint8_t *bucket_range_buf = nullptr;
-        uint64_t *bucket_range_buf_cli = nullptr;
-        int64_t tmp_rlt = 0;
+    //     // first read parameters from alg_info
+    //     uint8_t *id_hash_buf = (uint8_t*)alg_info->id_hash_buf.data();    // id hash number buf.
+    //     int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
+    //     int64_t id_num = alg_info->id_num;               // the number of id string.
+    //     int secu_key = alg_info->secu_key;
+    //     int64_t bucket_num = 1;
+    //     uint8_t *bucket_range_buf = nullptr;
+    //     uint64_t *bucket_range_buf_cli = nullptr;
+    //     int64_t tmp_rlt = 0;
 
-        std::vector<std::string> *data_row = alg_info->data_row;
-        if (is_server && nullptr == data_row)
-        {
-            LOG_ERROR(optAlg->logger, "pirPoolSplitBucket input data_row is null");
-            return rlt;
-        }
+    //     std::vector<std::string> *data_row = alg_info->data_row;
+    //     if (is_server && nullptr == data_row)
+    //     {
+    //         LOG_ERROR(optAlg->logger, "pirPoolSplitBucket input data_row is null");
+    //         return rlt;
+    //     }
 
-        // sort id_hash_buf
-        std::vector<uint64_t> id_hash_index(id_num);
-        initSortIndex(id_hash_index, id_num);
-        alg_info->id_hash_index = &id_hash_index;
+    //     // sort id_hash_buf
+    //     std::vector<uint64_t> id_hash_index(id_num);
+    //     initSortIndex(id_hash_index, id_num);
+    //     alg_info->id_hash_index = &id_hash_index;
 
-        int id_hash_len_in_uin32t = hash_byte_len / sizeof(uint32_t);
-        int shwo_cnt = 100;
-        int min_bucket_size = 2;
+    //     int id_hash_len_in_uin32t = hash_byte_len / sizeof(uint32_t);
+    //     int shwo_cnt = 100;
+    //     int min_bucket_size = 2;
 
-        int max_show_cnt = id_num > shwo_cnt ? shwo_cnt : id_num;
-        LOG_INFO(optAlg->logger, "id id_hash_len_in_uin32t len=" << id_hash_len_in_uin32t << ",hash_byte_len=" << hash_byte_len);
+    //     int max_show_cnt = id_num > shwo_cnt ? shwo_cnt : id_num;
+    //     LOG_INFO(optAlg->logger, "id id_hash_len_in_uin32t len=" << id_hash_len_in_uin32t << ",hash_byte_len=" << hash_byte_len);
 
-        // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
+    //     // for data security,disable printing input data  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
 
-        LOG_INFO(optAlg->logger, "show original hash value");
-        // showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
+    //     LOG_INFO(optAlg->logger, "show original hash value");
+    //     // showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
 
-        mergeSortUIntBuf((uint32_t *)id_hash_buf, id_hash_len_in_uin32t, 0, id_num - 1, id_hash_index);
+    //     mergeSortUIntBuf((uint32_t *)id_hash_buf, id_hash_len_in_uin32t, 0, id_num - 1, id_hash_index);
 
-        LOG_INFO(optAlg->logger, "show sort hash value");
-        // showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
+    //     LOG_INFO(optAlg->logger, "show sort hash value");
+    //     // showHexValue((uint32_t *)id_hash_buf, 4, max_show_cnt);
 
-        // for (int64_t i = 0; i < max_show_cnt; i++)
-        // {
-        //     LOG_DEBUG("index[" << i << "]=" << id_hash_index.at(i));
-        // }
-        showBlk(2, 1);
+    //     // for (int64_t i = 0; i < max_show_cnt; i++)
+    //     // {
+    //     //     LOG_DEBUG("index[" << i << "]=" << id_hash_index.at(i));
+    //     // }
+    //     showBlk(2, 1);
 
-        // then split to bucket
-        if (secu_key < min_bucket_size)
-        {
-            secu_key = min_bucket_size;
-            alg_info->secu_key = secu_key;
-            LOG_INFO(optAlg->logger, "secu_key to min_bucket_size=" << secu_key);
-        }
+    //     // then split to bucket
+    //     if (secu_key < min_bucket_size)
+    //     {
+    //         secu_key = min_bucket_size;
+    //         alg_info->secu_key = secu_key;
+    //         LOG_INFO(optAlg->logger, "secu_key to min_bucket_size=" << secu_key);
+    //     }
 
-        if (is_server)
-        {
-            tmp_rlt = pirBucketRange(alg_info, &bucket_range_buf, &bucket_num);
-            LOG_INFO(optAlg->logger, "pirBucketRange result = " << std::dec << tmp_rlt);
-            alg_info->total_bucket_num = bucket_num;
+    //     if (is_server)
+    //     {
+    //         tmp_rlt = pirBucketRange(alg_info, &bucket_range_buf, &bucket_num);
+    //         LOG_INFO(optAlg->logger, "pirBucketRange result = " << std::dec << tmp_rlt);
+    //         alg_info->total_bucket_num = bucket_num;
 
-            if (tmp_rlt < 0)
-            {
-                LOG_ERROR(optAlg->logger, "pirBucketRange rlt error.");
-                if (bucket_range_buf)
-                    free(bucket_range_buf);
-                return rlt;
-            }
-        }
+    //         if (tmp_rlt < 0)
+    //         {
+    //             LOG_ERROR(optAlg->logger, "pirBucketRange rlt error.");
+    //             if (bucket_range_buf)
+    //                 free(bucket_range_buf);
+    //             return rlt;
+    //         }
+    //     }
 
-        // here  client to recieve server bucket range.
-        std::string ch_name = "pirAlgBucket" + optAlg->taskId;
-        if (is_server)
-        {
-            uint64_t bucket_send_num = bucket_num * hash_byte_len / sizeof(uint64_t);
-            LOG_INFO(optAlg->logger, "server send   bucket num buf size=" << bucket_send_num);
-            srvSendBuf(optAlg, (uint64_t *)bucket_range_buf, bucket_send_num);
-        }
-        else
-        {
-            uint64_t rcv_len = 0;
-            cliRcvBuf(optAlg, &bucket_range_buf_cli, &rcv_len);
-            bucket_num = rcv_len / (hash_byte_len / sizeof(uint64_t));
-            alg_info->bucket_range_buf = bucket_range_buf_cli;
-            alg_info->total_bucket_num = bucket_num;
-            LOG_INFO(optAlg->logger, "client get server bucket num=" << bucket_num);
-        }
-        LOG_INFO(optAlg->logger, "srv cli exchange bucket range over.");
-        // server & client coordinates which buckets to run pir alg
+    //     // here  client to recieve server bucket range.
+    //     std::string ch_name = "pirAlgBucket" + optAlg->taskId;
+    //     if (is_server)
+    //     {
+    //         uint64_t bucket_send_num = bucket_num * hash_byte_len / sizeof(uint64_t);
+    //         LOG_INFO(optAlg->logger, "server send   bucket num buf size=" << bucket_send_num);
+    //         srvSendBuf(optAlg, (uint64_t *)bucket_range_buf, bucket_send_num);
+    //     }
+    //     else
+    //     {
+    //         uint64_t rcv_len = 0;
+    //         cliRcvBuf(optAlg, &bucket_range_buf_cli, &rcv_len);
+    //         bucket_num = rcv_len / (hash_byte_len / sizeof(uint64_t));
+    //         alg_info->bucket_range_buf = bucket_range_buf_cli;
+    //         alg_info->total_bucket_num = bucket_num;
+    //         LOG_INFO(optAlg->logger, "client get server bucket num=" << bucket_num);
+    //     }
+    //     LOG_INFO(optAlg->logger, "srv cli exchange bucket range over.");
+    //     // server & client coordinates which buckets to run pir alg
 
-        tmp_rlt = pirBucketFilter(optAlg, alg_info);
-        if (tmp_rlt < 1)
-        {
-            LOG_ERROR(optAlg->logger, "client find usable pir bucket num = " << tmp_rlt);
-            return rlt;
-        }
+    //     tmp_rlt = pirBucketFilter(optAlg, alg_info);
+    //     if (tmp_rlt < 1)
+    //     {
+    //         LOG_ERROR(optAlg->logger, "client find usable pir bucket num = " << tmp_rlt);
+    //         return rlt;
+    //     }
 
-        LOG_INFO(optAlg->logger, "pirBucketFilter over.");
+    //     LOG_INFO(optAlg->logger, "pirBucketFilter over.");
 
-        // update alg_info data_buf & data_row.
-        tmp_rlt = pirBucketDataUpdate(optAlg, alg_info);
-        LOG_INFO(optAlg->logger, "pirBucketDataUpdate over.");
+    //     // update alg_info data_buf & data_row.
+    //     tmp_rlt = pirBucketDataUpdate(optAlg, alg_info);
+    //     LOG_INFO(optAlg->logger, "pirBucketDataUpdate over.");
 
-        return rlt;
-    }
+    //     return rlt;
+    // }
 
     // remove dismatched bucket&data   .Modified by wumingzi/wumingzi. 2022:06:21,Tuesday,17:22:32.
-    int64_t pirBucketDataUpdate(OptAlg *optAlg, PirAlgInfo *alg_info)
-    {
-        int64_t rlt = -1;
-        if (nullptr == alg_info || nullptr == optAlg)
-        {
-            LOG_ERROR("pirBucketFilter input is null");
-            return rlt;
-        }
-
-        bool is_server = (0 == optAlg->role) ? true : false;
-
-        int64_t bucket = 0;
-        uint8_t *id_hash_buf = alg_info->id_hash_buf;                   // id hash number buf.
-        std::vector<std::string> *data_row = alg_info->data_row;        // id hash number buf.
-        std::vector<uint64_t> *id_hash_index = alg_info->id_hash_index; // id hash number buf.
-        std::vector<int64_t> &id_bucket_index = alg_info->id_bucket_index;
-        std::vector<uint64_t> &id_range_index = alg_info->id_range_index; // holds id range in bucket after updating data
-
-        int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
-        int64_t id_num = alg_info->id_num;               // the number of id string.
-        int secu_key = alg_info->secu_key;
-        bucket = alg_info->total_bucket_num;
-
-        LOG_INFO(optAlg->logger, "pirBucketDataUpdate bucket=" << bucket);
-        std::vector<int64_t> &matched_bucket = alg_info->matched_bucket;
-
-        LOG_INFO(optAlg->logger, "matched_bucket =" << matched_bucket.size());
-        LOG_INFO(optAlg->logger, "id_bucket_index =" << id_bucket_index.size());
-        LOG_INFO(optAlg->logger, "id_num =" << id_num);
-
-        if (nullptr == id_hash_index)
-        {
-            LOG_ERROR("id_hash_index is error.");
-            return rlt;
-        }
-
-        int64_t data_base = 0;
-        int64_t id_buf_offset = 0;
-        int64_t new_id_buf_offset = 0;
-        int64_t data_buf_offset = 0;
-        int64_t original_data_index = 0;
-        int64_t bucket_index = 0;
-        int64_t copy_bucket_len = 0;
-        uint64_t copy_data_cnt = 0;
-
-        if (!is_server)
-        {
-            uint8_t *tmp_hash_buf = nullptr;
-            int64_t new_data_vol = id_num;
-            std::vector<int64_t> new_id_bucket_index;
-            tmp_hash_buf = allocateUCharVec(new_data_vol * hash_byte_len);
-            if (nullptr == tmp_hash_buf)
-            {
-                LOG_ERROR(optAlg->logger, "tmp_hash_buf allocate error.");
-                return rlt;
-            }
-
-            id_range_index.resize(0);
-            new_id_bucket_index.resize(0);
-            std::vector<int64_t> new_id_range();
-
-            uint64_t bucket_index = 0;
-            for (int64_t i = 0; i < id_num; i++)
-            {
-                bucket_index = id_bucket_index.at(i);
-                if (i >= 0 && i < bucket)
-                {
-                    // here current id is matched in bucket.
-                    new_id_bucket_index.push_back(bucket_index);
-                    if (0 == id_range_index.size())
-                    { // first bucket index,no need to check duplicate
-                        id_range_index.push_back(bucket_index);
-                    }
-                    else
-                    {
-                        if (bucket_index != id_range_index.front())
-                            id_range_index.push_back(bucket_index);
-                    }
-
-                    // current id is contained in bucket
-                    // copy id_hash
-                    id_buf_offset = hash_byte_len * i;
-                    new_id_buf_offset = copy_data_cnt * hash_byte_len;
-                    copyBufData(id_hash_buf + id_buf_offset, tmp_hash_buf + new_id_buf_offset, hash_byte_len);
-                    // here increase copy_data_cnt
-                    copy_data_cnt++;
-                }
-            }
-
-            // here copy id_range_index to id_bucket_index
-            auto new_id_num = new_id_bucket_index.size();
-            if (new_id_num != copy_data_cnt)
-            {
-                LOG_ERROR(optAlg->logger, "new_id_num error =" << new_id_num << ",copy_data_cnt=" << copy_data_cnt);
-                return rlt;
-            }
-
-            id_bucket_index.resize(new_id_num);
-            for (uint64_t i = 0; i < new_id_num; i++)
-            {
-                id_bucket_index.at(i) = new_id_bucket_index.at(i);
-            }
-
-            // here calculate id_range_index
-            id_range_index.resize(0);
-
-            LOG_INFO(optAlg->logger, "new_id_num=" << new_id_num << ",copy_data_cnt=" << copy_data_cnt);
-            free(alg_info->id_hash_buf);
-            alg_info->id_hash_buf = tmp_hash_buf;
-            alg_info->id_num = copy_data_cnt;
-
-            LOG_INFO(optAlg->logger, "cli data update over.");
-        }
-
-        if (is_server)
-        {
-            uint8_t *tmp_hash_buf = nullptr;
-            auto len = matched_bucket.size();
-            int64_t new_data_vol = len * secu_key;
-            tmp_hash_buf = allocateUCharVec(new_data_vol * hash_byte_len);
-
-            if (nullptr == tmp_hash_buf)
-            {
-                LOG_ERROR(optAlg->logger, "tmp_hash_buf allocate error.");
-                return rlt;
-            }
-            if (nullptr == data_row)
-            {
-                LOG_ERROR(optAlg->logger, "data_row is error.");
-                return rlt;
-            }
-
-            std::vector<std::string> new_data_row(new_data_vol);
-
-            for (size_t i = 0; i < len; i++)
-            {
-                bucket_index = matched_bucket.at(i);
-                if (bucket_index < 0 || bucket_index >= bucket)
-                {
-                    LOG_INFO(optAlg->logger, "invliad bucket index=" << bucket_index);
-                    continue;
-                }
-                data_base = secu_key * bucket_index;
-
-                // copy each iterm in the bucket.
-                // need to consider the last bucket
-                copy_bucket_len = secu_key;
-                if (data_base + secu_key >= id_num)
-                {
-                    copy_bucket_len = id_num - data_base;
-                    LOG_INFO(optAlg->logger, "last bucket in bucket copy. set copy_bucke_len=" << copy_bucket_len);
-                }
-                for (int64_t j = 0; j < copy_bucket_len; j++)
-                {
-                    // copy data row
-                    data_buf_offset = data_base + j;
-                    original_data_index = id_hash_index->at(data_buf_offset);
-                    new_data_row.at(copy_data_cnt) = data_row->at(original_data_index);
-
-                    LOG_INFO(optAlg->logger, "matched bucket[" << i << "], data_buf_offset=" << data_buf_offset << ",original_data_index=" << original_data_index);
-                    // copy id_hash
-                    id_buf_offset = hash_byte_len * (data_base + j);
-                    new_id_buf_offset = copy_data_cnt * hash_byte_len;
-                    copyBufData(id_hash_buf + id_buf_offset, tmp_hash_buf + new_id_buf_offset, hash_byte_len);
-                    // here increase copy_data_cnt
-                    copy_data_cnt++;
-                }
-            }
-
-            // here copy tmporary data to alg_info
-            LOG_INFO(optAlg->logger, "copy_data_cnt=" << copy_data_cnt << ",new data row=" << new_data_row.size());
-            free(alg_info->id_hash_buf);
-            alg_info->id_hash_buf = tmp_hash_buf;
-            data_row->resize(copy_data_cnt);
-            for (uint64_t i = 0; i < copy_data_cnt; i++)
-            {
-                data_row->at(i) = new_data_row.at(i);
-            }
-            alg_info->id_num = copy_data_cnt;
-
-            // reinitialize id_hash_index.
-            id_hash_index->resize(copy_data_cnt);
-            for (uint64_t i = 0; i < copy_data_cnt; i++)
-            {
-                id_hash_index->at(i) = i;
-            }
-
-            LOG_INFO(optAlg->logger, "srv data update over.");
-        }
-
-        rlt = copy_data_cnt;
-        return rlt;
-    }
-
-    // remove bucket number which contains no query id  .Modified by wumingzi/wumingzi. 2022:06:21,Tuesday,15:26:18.
-    int64_t pirBucketFilter(OptAlg *optAlg, PirAlgInfo *alg_info)
-    {
-        int64_t rlt = -1;
-        if (nullptr == alg_info || nullptr == optAlg)
-        {
-            LOG_ERROR("pirBucketFilter input is null");
-            return rlt;
-        }
-
-        bool is_server = (0 == optAlg->role) ? true : false;
-        uint64_t *bucket_range_buf_cli = nullptr;
-        uint64_t show_cnt = optAlg->showCnt;
-        uint64_t max_show_cnt = show_cnt;
-
-        uint8_t *id_hash_buf = alg_info->id_hash_buf;    // id hash number buf.
-        int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
-        uint64_t id_num = alg_info->id_num;              // the number of id string.
-        uint64_t bucket = alg_info->total_bucket_num;
-
-        LOG_INFO("pirBucketFilter bucket=" << bucket);
-
-        if (!is_server)
-        {
-            bucket_range_buf_cli = alg_info->bucket_range_buf;
-
-            if (nullptr == bucket_range_buf_cli || bucket < 1)
-            {
-                LOG_ERROR("cli pirBucketFilter bucket error");
-            }
-        }
-
-        if (!is_server)
-        {
-            alg_info->id_bucket_index.resize(id_num);
-            for (uint64_t i = 0; i < id_num; i++)
-                alg_info->id_bucket_index.at(i) = -1;
-
-            uint8_t *s1 = nullptr;
-            uint64_t *s2 = nullptr;
-            int64_t offset_id = 0;
-            int64_t offset_bucket = 0;
-            uint64_t bucket_cnt = 0;
-            int64_t matched_id_num = 0;
-            LOG_INFO("id_num=" << id_num << ",bucket num=" << bucket);
-
-            for (uint64_t i = 0; i < id_num && bucket_cnt < bucket;)
-            {
-                offset_id = i * hash_byte_len;
-                offset_bucket = bucket_cnt * hash_byte_len / sizeof(uint64_t);
-
-                s1 = id_hash_buf + offset_id;
-                s2 = bucket_range_buf_cli + offset_bucket;
-
-                bool cmp = getUInt32Buf((uint32_t *)s2, (uint32_t *)s1, hash_byte_len / sizeof(uint32_t));
-
-                if (cmp) // current id is in bucket[bucket_cnt]
-                {
-                    alg_info->id_bucket_index.at(i++) = bucket_cnt;
-                    matched_id_num++;
-                    continue;
-                }
-                else // current id exceeds bucket[bucket_cnt]
-                {
-                    bucket_cnt++;
-                    continue;
-                }
-            }
-            LOG_INFO("cli matched id number=" << matched_id_num);
-        }
-
-        uint64_t *cli_bucket_index_buf = nullptr;
-        uint64_t matched_bucket_num = 0;
-
-        if (!is_server)
-        {
-            std::vector<int64_t> vec;
-            vec.push_back(-1); //-1 will always be sent to server even matched_bucket_num = 0;
-            for (uint64_t i = 0; i < id_num; i++)
-            {
-                auto index = alg_info->id_bucket_index.at(i);
-                if (index > vec.front())
-                {
-                    vec.push_back(index);
-                }
-            }
-            auto len = vec.size();
-            cli_bucket_index_buf = allocateUInt64Vec(len);
-            if (nullptr == cli_bucket_index_buf)
-            {
-                LOG_ERROR("cli_bucket_index_buf allocate mem error");
-                return rlt;
-            }
-
-            for (uint64_t i = 0; i < len; i++)
-            {
-                cli_bucket_index_buf[i] = vec.at(i);
-            }
-
-            matched_bucket_num = vec.size() - 1;
-        }
-
-        // now client send matched bucket index to server.
-        if (!is_server)
-        {
-            cliSendBuf(optAlg, (uint64_t *)cli_bucket_index_buf, matched_bucket_num + 1);
-        }
-        else
-        {
-            srvRcvBuf(optAlg, &cli_bucket_index_buf, &matched_bucket_num);
-            matched_bucket_num--;
-            LOG_INFO("srv get matched bucket num=" << matched_bucket_num);
-
-            max_show_cnt = matched_bucket_num > show_cnt ? show_cnt : matched_bucket_num;
-
-            for (uint64_t i = 0; i < max_show_cnt; i++)
-            {
-                auto index = cli_bucket_index_buf[i + 1];
-                if (index >= 0 && index < bucket)
-                {
-                    alg_info->matched_bucket.push_back(index);
-                }
-                if (i < max_show_cnt)
-                    LOG_DEBUG("srv matched bucket[" << i << "]=" << std::dec << index);
-            }
-        }
-
-        rlt = matched_bucket_num;
-        return rlt;
-    }
-
-    int64_t pirBucketRange(PirAlgInfo *alg_info, uint8_t **range_buf, int64_t *bucket_num)
-    {
-        int64_t rlt = -1;
-
-        if (nullptr == alg_info || nullptr == range_buf || nullptr == bucket_num)
-        {
-            LOG_ERROR("pirBucketRange input is null");
-            return rlt;
-        }
-
-        int64_t bucket = 0;
-        uint8_t *id_hash_buf = alg_info->id_hash_buf;    // id hash number buf.
-        int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
-        int64_t id_num = alg_info->id_num;               // the number of id string.
-        int secu_key = alg_info->secu_key;
-        bool garble_hash_val = false;
-
-        uint8_t *bucket_range_buf = nullptr;
-        // calculate bucket number
-        if (id_num < 1 || secu_key < 1)
-        {
-            LOG_ERROR("pirBucketRange input secu_key or id_num is too samll");
-            return rlt;
-        }
-
-        if (alg_info->garble_hash_value > 0)
-        {
-            garble_hash_val = true;
-            LOG_INFO("garble hash value. set to the average of two hash value in range buound");
-        }
-
-        bucket = (id_num + secu_key - 1) / secu_key;
-        LOG_INFO(std::dec << "pirBucketRange bucket=" << bucket << ",id_num=" << id_num << ",secu_key=" << secu_key);
-        bucket_range_buf = (uint8_t *)allocateUInt32Vec(bucket * hash_byte_len / sizeof(uint32_t));
-        uint64_t *dst = nullptr;
-        if (nullptr == bucket_range_buf)
-        {
-            LOG_ERROR("pirBucketRange allocate buffer error");
-            return rlt;
-        }
-
-        uint8_t *s1 = nullptr;
-        uint8_t *s2 = nullptr;
-        int64_t offset = 0;
-        for (int64_t i = 0; i < bucket - 1; i++)
-        {
-            offset = (i + 1) * secu_key - 1;
-            offset = offset * hash_byte_len;
-            s1 = id_hash_buf + offset;
-            s2 = s1 + hash_byte_len;
-
-            dst = (uint64_t *)(bucket_range_buf + i * hash_byte_len);
-
-            if (garble_hash_val)
-            {
-                auto tmp_rlt = avgUInt128BufSimple((uint32_t *)s2, (uint32_t *)s1, (uint32_t *)dst);
-                if (!tmp_rlt)
-                {
-                    LOG_ERROR("pirBucketRange errot at bucket=" << i);
-                    LOG_ERROR("s1:");
-                    showHexValue((uint32_t *)s1, 4, 1);
-                    LOG_ERROR("s2:");
-                    showHexValue((uint32_t *)s2, 4, 1);
-                    return rlt;
-                }
-            }
-            else // no need to calculate avg of two hash val.
-            {
-                uint8_t *dst_u8 = bucket_range_buf + i * hash_byte_len;
-                for (int64_t j = 0; j < hash_byte_len; j++)
-                {
-                    dst_u8[j] = s2[j];
-                }
-            }
-        }
-
-        LOG_INFO("set last buf range to all 1 here.");
-        // the last bucket range nees special consideration.
-        dst = (uint64_t *)(bucket_range_buf + (bucket - 1) * hash_byte_len);
-        dst[0] = 0xffffffff;
-        dst[1] = 0xffffffff;
-
-        LOG_INFO("save bucket range result  here.");
-        // save result
-        *bucket_num = bucket;
-
-        *range_buf = bucket_range_buf;
-
-        LOG_INFO("check bucket range result  here.");
-        // here to check
-        for (int64_t i = 0; i < bucket - 1; i++)
-        {
-            offset = (i + 1) * secu_key - 1;
-            offset = offset * hash_byte_len;
-            s1 = id_hash_buf + offset;
-            s2 = s1 + hash_byte_len;
-
-            dst = (uint64_t *)(bucket_range_buf + (i)*hash_byte_len);
-
-            bool cmp1 = letUInt32Buf((uint32_t *)s1, (uint32_t *)dst, 4);
-            bool cmp2 = letUInt32Buf((uint32_t *)dst, (uint32_t *)s2, 4);
-            if (!cmp1 || !cmp2)
-            {
-                LOG_ERROR("bucket range error at " << i);
-                LOG_ERROR("s1:");
-                showHexValue((uint32_t *)s1, 4, 1);
-                LOG_ERROR("s2:");
-                showHexValue((uint32_t *)s2, 4, 1);
-                LOG_ERROR("range:");
-                showHexValue((uint32_t *)dst, 4, 1);
-                return rlt;
-            }
-        }
-
-        rlt = bucket;
-
-        return rlt;
-    }
-
-    int64_t splitIdBufBucket(PirDataInfo *data_info)
+    // int64_t pirBucketDataUpdate(OptAlg *optAlg, PirAlgInfo *alg_info)
+    // {
+    //     int64_t rlt = -1;
+    //     if (nullptr == alg_info || nullptr == optAlg)
+    //     {
+    //         LOG_ERROR("pirBucketFilter input is null");
+    //         return rlt;
+    //     }
+
+    //     bool is_server = (0 == optAlg->role) ? true : false;
+
+    //     int64_t bucket = 0;
+    //     uint8_t *id_hash_buf = (uint8_t*)alg_info->id_hash_buf.data();                   // id hash number buf.
+    //     std::vector<std::string> *data_row = alg_info->data_row;        // id hash number buf.
+    //     std::vector<uint64_t> *id_hash_index = alg_info->id_hash_index; // id hash number buf.
+    //     std::vector<int64_t> &id_bucket_index = alg_info->id_bucket_index;
+    //     std::vector<uint64_t> &id_range_index = alg_info->id_range_index; // holds id range in bucket after updating data
+
+    //     int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
+    //     int64_t id_num = alg_info->id_num;               // the number of id string.
+    //     int secu_key = alg_info->secu_key;
+    //     bucket = alg_info->total_bucket_num;
+
+    //     LOG_INFO(optAlg->logger, "pirBucketDataUpdate bucket=" << bucket);
+    //     std::vector<int64_t> &matched_bucket = alg_info->matched_bucket;
+
+    //     LOG_INFO(optAlg->logger, "matched_bucket =" << matched_bucket.size());
+    //     LOG_INFO(optAlg->logger, "id_bucket_index =" << id_bucket_index.size());
+    //     LOG_INFO(optAlg->logger, "id_num =" << id_num);
+
+    //     if (nullptr == id_hash_index)
+    //     {
+    //         LOG_ERROR("id_hash_index is error.");
+    //         return rlt;
+    //     }
+
+    //     int64_t data_base = 0;
+    //     int64_t id_buf_offset = 0;
+    //     int64_t new_id_buf_offset = 0;
+    //     int64_t data_buf_offset = 0;
+    //     int64_t original_data_index = 0;
+    //     int64_t bucket_index = 0;
+    //     int64_t copy_bucket_len = 0;
+    //     uint64_t copy_data_cnt = 0;
+
+    //     if (!is_server)
+    //     {
+    //         uint8_t *tmp_hash_buf = nullptr;
+    //         int64_t new_data_vol = id_num;
+    //         std::vector<int64_t> new_id_bucket_index;
+    //         tmp_hash_buf = allocateUCharVec(new_data_vol * hash_byte_len);
+    //         if (nullptr == tmp_hash_buf)
+    //         {
+    //             LOG_ERROR(optAlg->logger, "tmp_hash_buf allocate error.");
+    //             return rlt;
+    //         }
+
+    //         id_range_index.resize(0);
+    //         new_id_bucket_index.resize(0);
+    //         std::vector<int64_t> new_id_range();
+
+    //         uint64_t bucket_index = 0;
+    //         for (int64_t i = 0; i < id_num; i++)
+    //         {
+    //             bucket_index = id_bucket_index.at(i);
+    //             if (i >= 0 && i < bucket)
+    //             {
+    //                 // here current id is matched in bucket.
+    //                 new_id_bucket_index.push_back(bucket_index);
+    //                 if (0 == id_range_index.size())
+    //                 { // first bucket index,no need to check duplicate
+    //                     id_range_index.push_back(bucket_index);
+    //                 }
+    //                 else
+    //                 {
+    //                     if (bucket_index != id_range_index.front())
+    //                         id_range_index.push_back(bucket_index);
+    //                 }
+
+    //                 // current id is contained in bucket
+    //                 // copy id_hash
+    //                 id_buf_offset = hash_byte_len * i;
+    //                 new_id_buf_offset = copy_data_cnt * hash_byte_len;
+    //                 copyBufData(id_hash_buf + id_buf_offset, tmp_hash_buf + new_id_buf_offset, hash_byte_len);
+    //                 // here increase copy_data_cnt
+    //                 copy_data_cnt++;
+    //             }
+    //         }
+
+    //         // here copy id_range_index to id_bucket_index
+    //         auto new_id_num = new_id_bucket_index.size();
+    //         if (new_id_num != copy_data_cnt)
+    //         {
+    //             LOG_ERROR(optAlg->logger, "new_id_num error =" << new_id_num << ",copy_data_cnt=" << copy_data_cnt);
+    //             return rlt;
+    //         }
+
+    //         id_bucket_index.resize(new_id_num);
+    //         for (uint64_t i = 0; i < new_id_num; i++)
+    //         {
+    //             id_bucket_index.at(i) = new_id_bucket_index.at(i);
+    //         }
+
+    //         // here calculate id_range_index
+    //         id_range_index.resize(0);
+
+    //         LOG_INFO(optAlg->logger, "new_id_num=" << new_id_num << ",copy_data_cnt=" << copy_data_cnt);
+    //         // free(alg_info->id_hash_buf);
+    //         alg_info->id_hash_buf.clear();
+    //         alg_info->id_hash_buf = tmp_hash_buf;
+    //         alg_info->id_num = copy_data_cnt;
+
+    //         LOG_INFO(optAlg->logger, "cli data update over.");
+    //     }
+
+    //     if (is_server)
+    //     {
+    //         uint8_t *tmp_hash_buf = nullptr;
+    //         auto len = matched_bucket.size();
+    //         int64_t new_data_vol = len * secu_key;
+    //         tmp_hash_buf = allocateUCharVec(new_data_vol * hash_byte_len);
+
+    //         if (nullptr == tmp_hash_buf)
+    //         {
+    //             LOG_ERROR(optAlg->logger, "tmp_hash_buf allocate error.");
+    //             return rlt;
+    //         }
+    //         if (nullptr == data_row)
+    //         {
+    //             LOG_ERROR(optAlg->logger, "data_row is error.");
+    //             return rlt;
+    //         }
+
+    //         std::vector<std::string> new_data_row(new_data_vol);
+
+    //         for (size_t i = 0; i < len; i++)
+    //         {
+    //             bucket_index = matched_bucket.at(i);
+    //             if (bucket_index < 0 || bucket_index >= bucket)
+    //             {
+    //                 LOG_INFO(optAlg->logger, "invliad bucket index=" << bucket_index);
+    //                 continue;
+    //             }
+    //             data_base = secu_key * bucket_index;
+
+    //             // copy each iterm in the bucket.
+    //             // need to consider the last bucket
+    //             copy_bucket_len = secu_key;
+    //             if (data_base + secu_key >= id_num)
+    //             {
+    //                 copy_bucket_len = id_num - data_base;
+    //                 LOG_INFO(optAlg->logger, "last bucket in bucket copy. set copy_bucke_len=" << copy_bucket_len);
+    //             }
+    //             for (int64_t j = 0; j < copy_bucket_len; j++)
+    //             {
+    //                 // copy data row
+    //                 data_buf_offset = data_base + j;
+    //                 original_data_index = id_hash_index->at(data_buf_offset);
+    //                 new_data_row.at(copy_data_cnt) = data_row->at(original_data_index);
+
+    //                 LOG_INFO(optAlg->logger, "matched bucket[" << i << "], data_buf_offset=" << data_buf_offset << ",original_data_index=" << original_data_index);
+    //                 // copy id_hash
+    //                 id_buf_offset = hash_byte_len * (data_base + j);
+    //                 new_id_buf_offset = copy_data_cnt * hash_byte_len;
+    //                 copyBufData(id_hash_buf + id_buf_offset, tmp_hash_buf + new_id_buf_offset, hash_byte_len);
+    //                 // here increase copy_data_cnt
+    //                 copy_data_cnt++;
+    //             }
+    //         }
+
+    //         // here copy tmporary data to alg_info
+    //         LOG_INFO(optAlg->logger, "copy_data_cnt=" << copy_data_cnt << ",new data row=" << new_data_row.size());
+    //         free(alg_info->id_hash_buf);
+    //         alg_info->id_hash_buf = tmp_hash_buf;
+    //         data_row->resize(copy_data_cnt);
+    //         for (uint64_t i = 0; i < copy_data_cnt; i++)
+    //         {
+    //             data_row->at(i) = new_data_row.at(i);
+    //         }
+    //         alg_info->id_num = copy_data_cnt;
+
+    //         // reinitialize id_hash_index.
+    //         id_hash_index->resize(copy_data_cnt);
+    //         for (uint64_t i = 0; i < copy_data_cnt; i++)
+    //         {
+    //             id_hash_index->at(i) = i;
+    //         }
+
+    //         LOG_INFO(optAlg->logger, "srv data update over.");
+    //     }
+
+    //     rlt = copy_data_cnt;
+    //     return rlt;
+    // }
+
+    // // remove bucket number which contains no query id  .Modified by wumingzi/wumingzi. 2022:06:21,Tuesday,15:26:18.
+    // int64_t pirBucketFilter(OptAlg *optAlg, PirAlgInfo *alg_info)
+    // {
+    //     int64_t rlt = -1;
+    //     if (nullptr == alg_info || nullptr == optAlg)
+    //     {
+    //         LOG_ERROR("pirBucketFilter input is null");
+    //         return rlt;
+    //     }
+
+    //     bool is_server = (0 == optAlg->role) ? true : false;
+    //     uint64_t *bucket_range_buf_cli = nullptr;
+    //     uint64_t show_cnt = optAlg->showCnt;
+    //     uint64_t max_show_cnt = show_cnt;
+
+    //     uint8_t *id_hash_buf = alg_info->id_hash_buf;    // id hash number buf.
+    //     int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
+    //     uint64_t id_num = alg_info->id_num;              // the number of id string.
+    //     uint64_t bucket = alg_info->total_bucket_num;
+
+    //     LOG_INFO("pirBucketFilter bucket=" << bucket);
+
+    //     if (!is_server)
+    //     {
+    //         bucket_range_buf_cli = alg_info->bucket_range_buf;
+
+    //         if (nullptr == bucket_range_buf_cli || bucket < 1)
+    //         {
+    //             LOG_ERROR("cli pirBucketFilter bucket error");
+    //         }
+    //     }
+
+    //     if (!is_server)
+    //     {
+    //         alg_info->id_bucket_index.resize(id_num);
+    //         for (uint64_t i = 0; i < id_num; i++)
+    //             alg_info->id_bucket_index.at(i) = -1;
+
+    //         uint8_t *s1 = nullptr;
+    //         uint64_t *s2 = nullptr;
+    //         int64_t offset_id = 0;
+    //         int64_t offset_bucket = 0;
+    //         uint64_t bucket_cnt = 0;
+    //         int64_t matched_id_num = 0;
+    //         LOG_INFO("id_num=" << id_num << ",bucket num=" << bucket);
+
+    //         for (uint64_t i = 0; i < id_num && bucket_cnt < bucket;)
+    //         {
+    //             offset_id = i * hash_byte_len;
+    //             offset_bucket = bucket_cnt * hash_byte_len / sizeof(uint64_t);
+
+    //             s1 = id_hash_buf + offset_id;
+    //             s2 = bucket_range_buf_cli + offset_bucket;
+
+    //             bool cmp = getUInt32Buf((uint32_t *)s2, (uint32_t *)s1, hash_byte_len / sizeof(uint32_t));
+
+    //             if (cmp) // current id is in bucket[bucket_cnt]
+    //             {
+    //                 alg_info->id_bucket_index.at(i++) = bucket_cnt;
+    //                 matched_id_num++;
+    //                 continue;
+    //             }
+    //             else // current id exceeds bucket[bucket_cnt]
+    //             {
+    //                 bucket_cnt++;
+    //                 continue;
+    //             }
+    //         }
+    //         LOG_INFO("cli matched id number=" << matched_id_num);
+    //     }
+
+    //     uint64_t *cli_bucket_index_buf = nullptr;
+    //     uint64_t matched_bucket_num = 0;
+
+    //     if (!is_server)
+    //     {
+    //         std::vector<int64_t> vec;
+    //         vec.push_back(-1); //-1 will always be sent to server even matched_bucket_num = 0;
+    //         for (uint64_t i = 0; i < id_num; i++)
+    //         {
+    //             auto index = alg_info->id_bucket_index.at(i);
+    //             if (index > vec.front())
+    //             {
+    //                 vec.push_back(index);
+    //             }
+    //         }
+    //         auto len = vec.size();
+    //         cli_bucket_index_buf = allocateUInt64Vec(len);
+    //         if (nullptr == cli_bucket_index_buf)
+    //         {
+    //             LOG_ERROR("cli_bucket_index_buf allocate mem error");
+    //             return rlt;
+    //         }
+
+    //         for (uint64_t i = 0; i < len; i++)
+    //         {
+    //             cli_bucket_index_buf[i] = vec.at(i);
+    //         }
+
+    //         matched_bucket_num = vec.size() - 1;
+    //     }
+
+    //     // now client send matched bucket index to server.
+    //     if (!is_server)
+    //     {
+    //         cliSendBuf(optAlg, (uint64_t *)cli_bucket_index_buf, matched_bucket_num + 1);
+    //     }
+    //     else
+    //     {
+    //         srvRcvBuf(optAlg, &cli_bucket_index_buf, &matched_bucket_num);
+    //         matched_bucket_num--;
+    //         LOG_INFO("srv get matched bucket num=" << matched_bucket_num);
+
+    //         max_show_cnt = matched_bucket_num > show_cnt ? show_cnt : matched_bucket_num;
+
+    //         for (uint64_t i = 0; i < max_show_cnt; i++)
+    //         {
+    //             auto index = cli_bucket_index_buf[i + 1];
+    //             if (index >= 0 && index < bucket)
+    //             {
+    //                 alg_info->matched_bucket.push_back(index);
+    //             }
+    //             if (i < max_show_cnt)
+    //                 LOG_DEBUG("srv matched bucket[" << i << "]=" << std::dec << index);
+    //         }
+    //     }
+
+    //     rlt = matched_bucket_num;
+    //     return rlt;
+    // }
+
+    // int64_t pirBucketRange(PirAlgInfo *alg_info, uint8_t **range_buf, int64_t *bucket_num)
+    // {
+    //     int64_t rlt = -1;
+
+    //     if (nullptr == alg_info || nullptr == range_buf || nullptr == bucket_num)
+    //     {
+    //         LOG_ERROR("pirBucketRange input is null");
+    //         return rlt;
+    //     }
+
+    //     int64_t bucket = 0;
+    //     uint8_t *id_hash_buf = alg_info->id_hash_buf;    // id hash number buf.
+    //     int32_t hash_byte_len = alg_info->hash_byte_len; // the byte length of each hash vaule.
+    //     int64_t id_num = alg_info->id_num;               // the number of id string.
+    //     int secu_key = alg_info->secu_key;
+    //     bool garble_hash_val = false;
+
+    //     uint8_t *bucket_range_buf = nullptr;
+    //     // calculate bucket number
+    //     if (id_num < 1 || secu_key < 1)
+    //     {
+    //         LOG_ERROR("pirBucketRange input secu_key or id_num is too samll");
+    //         return rlt;
+    //     }
+
+    //     if (alg_info->garble_hash_value > 0)
+    //     {
+    //         garble_hash_val = true;
+    //         LOG_INFO("garble hash value. set to the average of two hash value in range buound");
+    //     }
+
+    //     bucket = (id_num + secu_key - 1) / secu_key;
+    //     LOG_INFO(std::dec << "pirBucketRange bucket=" << bucket << ",id_num=" << id_num << ",secu_key=" << secu_key);
+    //     bucket_range_buf = (uint8_t *)allocateUInt32Vec(bucket * hash_byte_len / sizeof(uint32_t));
+    //     uint64_t *dst = nullptr;
+    //     if (nullptr == bucket_range_buf)
+    //     {
+    //         LOG_ERROR("pirBucketRange allocate buffer error");
+    //         return rlt;
+    //     }
+
+    //     uint8_t *s1 = nullptr;
+    //     uint8_t *s2 = nullptr;
+    //     int64_t offset = 0;
+    //     for (int64_t i = 0; i < bucket - 1; i++)
+    //     {
+    //         offset = (i + 1) * secu_key - 1;
+    //         offset = offset * hash_byte_len;
+    //         s1 = id_hash_buf + offset;
+    //         s2 = s1 + hash_byte_len;
+
+    //         dst = (uint64_t *)(bucket_range_buf + i * hash_byte_len);
+
+    //         if (garble_hash_val)
+    //         {
+    //             auto tmp_rlt = avgUInt128BufSimple((uint32_t *)s2, (uint32_t *)s1, (uint32_t *)dst);
+    //             if (!tmp_rlt)
+    //             {
+    //                 LOG_ERROR("pirBucketRange errot at bucket=" << i);
+    //                 LOG_ERROR("s1:");
+    //                 showHexValue((uint32_t *)s1, 4, 1);
+    //                 LOG_ERROR("s2:");
+    //                 showHexValue((uint32_t *)s2, 4, 1);
+    //                 return rlt;
+    //             }
+    //         }
+    //         else // no need to calculate avg of two hash val.
+    //         {
+    //             uint8_t *dst_u8 = bucket_range_buf + i * hash_byte_len;
+    //             for (int64_t j = 0; j < hash_byte_len; j++)
+    //             {
+    //                 dst_u8[j] = s2[j];
+    //             }
+    //         }
+    //     }
+
+    //     LOG_INFO("set last buf range to all 1 here.");
+    //     // the last bucket range nees special consideration.
+    //     dst = (uint64_t *)(bucket_range_buf + (bucket - 1) * hash_byte_len);
+    //     dst[0] = 0xffffffff;
+    //     dst[1] = 0xffffffff;
+
+    //     LOG_INFO("save bucket range result  here.");
+    //     // save result
+    //     *bucket_num = bucket;
+
+    //     *range_buf = bucket_range_buf;
+
+    //     LOG_INFO("check bucket range result  here.");
+    //     // here to check
+    //     for (int64_t i = 0; i < bucket - 1; i++)
+    //     {
+    //         offset = (i + 1) * secu_key - 1;
+    //         offset = offset * hash_byte_len;
+    //         s1 = id_hash_buf + offset;
+    //         s2 = s1 + hash_byte_len;
+
+    //         dst = (uint64_t *)(bucket_range_buf + (i)*hash_byte_len);
+
+    //         bool cmp1 = letUInt32Buf((uint32_t *)s1, (uint32_t *)dst, 4);
+    //         bool cmp2 = letUInt32Buf((uint32_t *)dst, (uint32_t *)s2, 4);
+    //         if (!cmp1 || !cmp2)
+    //         {
+    //             LOG_ERROR("bucket range error at " << i);
+    //             LOG_ERROR("s1:");
+    //             showHexValue((uint32_t *)s1, 4, 1);
+    //             LOG_ERROR("s2:");
+    //             showHexValue((uint32_t *)s2, 4, 1);
+    //             LOG_ERROR("range:");
+    //             showHexValue((uint32_t *)dst, 4, 1);
+    //             return rlt;
+    //         }
+    //     }
+
+    //     rlt = bucket;
+
+    //     return rlt;
+    // }
+
+    int64_t splitIdBufBucket(PirDataInfo *data_info, Logger *logger)
     {
         int64_t rlt = -1;
         if (nullptr == data_info)
         {
-            LOG_ERROR("splitIdBufBucket input is null");
+            LOG_ERROR(logger, "splitIdBufBucket input is null");
             return rlt;
         }
 
@@ -1844,27 +1997,26 @@ namespace xscePirAlg
         uint64_t max_pool_size = 1000 * 1000 * 10;
         uint64_t min_pool_size = 1;
         uint64_t max_pool_num = 256 * 256;
-        bool bucket_pool_num_mode = true; // true means use bucket number
 
-        uint8_t *data_buf = (uint8_t *)data_info->id_hash_buf;
-        if (nullptr == data_buf)
-        {
-            LOG_ERROR("splitIdBufBucket input is null");
-            return rlt;
-        }
+        // uint8_t *data_buf = (uint8_t *)data_info->id_hash_buf.data();
+        // if (nullptr == data_buf)
+        // {
+        //     LOG_ERROR(logger, "splitIdBufBucket input is null");
+        //     return rlt;
+        // }
 
         uint64_t hash_byte_length = data_info->id_hash_byte_len;
 
         if (hash_byte_length < 1 || hash_byte_length % 8 != 0)
         {
-            LOG_ERROR("splitIdBufBucket input hash_byte_length is invalid=" << hash_byte_length);
+            LOG_ERROR(logger, "splitIdBufBucket input hash_byte_length is invalid=" << hash_byte_length);
             return rlt;
         }
 
         uint64_t index_char_pos = (uint64_t)data_info->index_char_pos;
         if (index_char_pos < 0 || index_char_pos >= hash_byte_length)
         {
-            LOG_ERROR("splitIdBufBucket input index_char_pos is invalid， set to 0" << index_char_pos);
+            LOG_ERROR(logger, "splitIdBufBucket input index_char_pos is invalid， set to 0" << index_char_pos);
             // return rlt;
             index_char_pos = 0;
             data_info->index_char_pos = 0;
@@ -1873,7 +2025,7 @@ namespace xscePirAlg
         uint64_t id_num = data_info->id_num;
         if (id_num < 1 || id_num > max_id_num)
         {
-            LOG_ERROR("splitIdBufBucket input id_num is invalid=" << id_num);
+            LOG_ERROR(logger, "splitIdBufBucket input id_num is invalid=" << id_num);
             return rlt;
         }
 
@@ -1884,14 +2036,14 @@ namespace xscePirAlg
             data_info->bucket_pool_num = 1;
         }
 
-        LOG_INFO("splitIdBufBucket bucket_pool_num=" << bucket_pool_num << ",index_char_pos=" << index_char_pos);
+        LOG_INFO("logger, splitIdBufBucket bucket_pool_num=" << bucket_pool_num << ",index_char_pos=" << index_char_pos);
 
-        std::vector<int64_t> *original_index_id = data_info->original_index_id;
-        if (nullptr == original_index_id)
-        {
-            LOG_ERROR("splitIdBufBucket input original_index_id is null");
-            return rlt;
-        }
+        // std::vector<int64_t> *original_index_id = data_info->original_index_id;
+        // if (nullptr == original_index_id)
+        // {
+        //     LOG_ERROR("logger, splitIdBufBucket input original_index_id is null");
+        //     return rlt;
+        // }
 
         uint64_t bucket_pool_size = data_info->bucket_pool_size;
         if (bucket_pool_size < min_pool_size)
@@ -1914,49 +2066,50 @@ namespace xscePirAlg
 
         // here bein to split bucket pool. for now, bucket_pool_size is not used.
         int64_t pool_num = data_info->bucket_pool_num;
-        LOG_INFO("split bucket pool, id num=" << std::dec << id_num << ",pool_num=" << pool_num << ",bucke_pool_size=" << bucket_pool_size);
-        LOG_INFO("split bucket pool, index_char_pos=" << index_char_pos << ",secuKey=" << secu_key);
+        LOG_INFO(logger, "split bucket pool, id num=" << std::dec << id_num << ",pool_num=" << pool_num << ",bucke_pool_size=" << bucket_pool_size);
+        LOG_INFO(logger, "split bucket pool, index_char_pos=" << index_char_pos << ",secuKey=" << secu_key);
 
+        bool bucket_pool_num_mode = true; // true means use bucket number
         if (bucket_pool_num_mode)
         {
-            LOG_INFO("split data to bucket pool in fixed pool number mode.");
-            auto split_rlt = splitIdBufBucketByPoolNum(data_info);
+            LOG_INFO(logger, "split data to bucket pool in fixed pool number mode.");
+            auto split_rlt = splitIdBufBucketByPoolNum(data_info, logger);
             rlt = split_rlt;
             showBlk(2, 2);
-            showPirDataInfo(data_info);
+            // showPirDataInfo(data_info);
 
-            LOG_INFO("check pirDataInfo validity");
+            LOG_INFO(logger, "check pirDataInfo validity");
             std::string msg;
             if (!checkPirDataInfo(data_info, msg))
             {
-                LOG_INFO(msg);
+                LOG_INFO(logger, msg);
             }
             else
             {
-                LOG_INFO("pirDataInfo is ok.");
+                LOG_INFO(logger, "pirDataInfo is ok.");
             }
         }
         else // in pool size mode
         {
-            LOG_INFO("split data to bucket pool in fixed pool volume mode.");
+            LOG_INFO(logger, "split data to bucket pool in fixed pool volume mode.");
         }
 
         return rlt;
     }
 
     // split buf to pool  .Modified by wumingzi/wumingzi. 2022:06:15,Wednesday,23:52:34.
-    int64_t splitIdBufBucketByPoolNum(PirDataInfo *data_info)
+    int64_t splitIdBufBucketByPoolNum(PirDataInfo *data_info, Logger* logger)
     {
         int64_t rlt = -1;
         if (nullptr == data_info)
         {
-            LOG_ERROR("splitIdBufBucketByPoolNum input is null");
+            LOG_ERROR(logger, "splitIdBufBucketByPoolNum input is null");
             return rlt;
         }
 
         bool is_server = (0 == data_info->role) ? true : false;
 
-        uint8_t *data_buf = (uint8_t *)data_info->id_hash_buf;
+        // uint8_t *data_buf = (uint8_t *)data_info->id_hash_buf.data();
         uint64_t hash_byte_length = data_info->id_hash_byte_len;
         int index_char_pos = data_info->index_char_pos;
         int index_char_len = 1;
@@ -1975,8 +2128,8 @@ namespace xscePirAlg
         //      LOG_INFO("splitIdBufBucketByPoolNum, set bucket_pool_num to default vale =" << bucket_pool_sum);
         //  }
 
-        LOG_INFO("splitIdBufBucketByPoolNum,id_num=" << id_num << ",bucket_pool_sum=" << bucket_pool_sum << ",pool num=" << bucket_pool_num);
-        LOG_INFO("splitIdBufBucketByPoolNum,index_char_pos=" << index_char_pos << ",bucket_pool_sum=" << bucket_pool_sum << ",pool num=" << bucket_pool_num);
+        LOG_INFO(logger, "splitIdBufBucketByPoolNum,id_num=" << id_num << ",bucket_pool_sum=" << bucket_pool_sum << ",pool num=" << bucket_pool_num);
+        LOG_INFO(logger, "splitIdBufBucketByPoolNum,index_char_pos=" << index_char_pos << ",bucket_pool_sum=" << bucket_pool_sum << ",pool num=" << bucket_pool_num);
 
         int64_t base = 0;
         int64_t offset = 0;
@@ -1987,6 +2140,7 @@ namespace xscePirAlg
         data_info->bucket_pool_vol.resize(bucket_pool_num, 0);
         data_info->bucket_pool_index_id.resize(id_num, 0);
 
+        // uint8_t *data_buf = (uint8_t *)data_info->id_hash_buf.data();
         for (uint64_t i = 0; i < id_num; i++)
         {
             offset = base + index_char_pos;
@@ -1994,7 +2148,8 @@ namespace xscePirAlg
             // only valid for 1 byte index_len,if index_char_len is larger than 1,should use the following
             // when index_char_len=2 curVal = data_buf[offset] + 256*data_buf[offset+1]
             // when index_char_len=3 curVal = data_buf[offset] + 256*data_buf[offset+1]+256*256*data_buf[offset+2]
-            curVal = data_buf[offset];
+            // curVal = data_buf[offset];
+            curVal = ((uint8_t*)&(data_info->id_hash_buf[i]))[sizeof(util::Buf128) - 1]; // 取结构体最后一个字节;
             pool_index = GET_POOL_INDEX(curVal, bucket_pool_sum, bucket_pool_num);
             pool_volume[pool_index]++;
             id_index_pool[i] = pool_index;
@@ -2004,91 +2159,96 @@ namespace xscePirAlg
         }
 
         // allocate buffer size for each pool
-        std::vector<uint32_t *> &bucket_pool_buf = data_info->bucket_pool_buf;
+        // std::vector<uint32_t *> &bucket_pool_buf = data_info->bucket_pool_buf;
         std::vector<std::vector<std::string>> &bucket_pool_data_row = data_info->bucket_pool_data_row;
         std::vector<std::vector<std::string>> &id_str = data_info->id_str;
         std::vector<std::vector<int64_t>> &id_index = data_info->original_id_index;
-        std::vector<int64_t> *original_index_id = data_info->original_index_id;
+        // std::vector<int64_t> *original_index_id = data_info->original_index_id;
 
-        std::vector<std::string> *original_id_str = data_info->original_id_str;
-        std::vector<std::string> *original_data_str = data_info->original_data_str;
+        std::vector<std::string> &original_id_str = data_info->original_id_str;
+        std::vector<std::string> &original_data_str = data_info->original_data_str;
 
-        if (nullptr == original_index_id)
-        {
-            LOG_ERROR("original_index_id is null. exit");
-            return rlt;
-        }
-        if (nullptr == original_id_str)
-        {
-            LOG_ERROR("original_id_str is null. exit");
-            return rlt;
-        }
-        if (is_server && nullptr == original_data_str)
-        {
-            LOG_ERROR("original_data_str is null. exit");
-            return rlt;
-        }
+        // if (nullptr == original_index_id)
+        // {
+        //     LOG_ERROR(logger, "original_index_id is null. exit");
+        //     return rlt;
+        // }
+        // if (nullptr == original_id_str)
+        // {
+        //     LOG_ERROR("original_id_str is null. exit");
+        //     return rlt;
+        // }
+        // if (is_server && nullptr == original_data_str)
+        // {
+        //     LOG_ERROR("original_data_str is null. exit");
+        //     return rlt;
+        // }
 
-        bucket_pool_buf.resize(bucket_pool_num);
+        data_info->bucket_pool_buf.resize(bucket_pool_num);
         for (uint64_t i = 0; i < bucket_pool_num; i++)
         {
             auto buf_len = pool_volume[i];
 
             data_info->bucket_pool_vol.at(i) = buf_len;
+            data_info->bucket_pool_buf.reserve(buf_len);
 
-            int64_t mem_len = buf_len * hash_byte_length / sizeof(uint32_t);
-            LOG_INFO("bucket_pool_buf[" << i << "] size=" << buf_len << ",mem_len=" << mem_len);
-            uint32_t *cur_pool_buf = nullptr;
-            if (buf_len > 0)
-            {
-                cur_pool_buf = allocateUInt32Vec(mem_len);
-                if (nullptr == cur_pool_buf)
-                {
-                    LOG_ERROR("splitIdBufBucketByPoolNum allocate buf error at pool=" << i << ".");
-                    return rlt;
-                }
-            }
+            // int64_t mem_len = buf_len * hash_byte_length / sizeof(uint32_t);
+            // LOG_INFO(logger, "bucket_pool_buf[" << i << "] size=" << buf_len << ",mem_len=" << mem_len);
+            // uint32_t *cur_pool_buf = nullptr;
+            // if (buf_len > 0)
+            // {
+            //     cur_pool_buf = allocateUInt32Vec(mem_len);
+            //     if (nullptr == cur_pool_buf)
+            //     {
+            //         LOG_ERROR(logger, "splitIdBufBucketByPoolNum allocate buf error at pool=" << i << ".");
+            //         return rlt;
+            //     }
+            // }
 
-            bucket_pool_buf.at(i) = cur_pool_buf;
+            // bucket_pool_buf.at(i) = cur_pool_buf;
         }
 
         // copy data buf to each pool buffer
-        std::vector<int64_t> pool_buf_offset(bucket_pool_num, 0);
-        if (is_server)
-        {
-            bucket_pool_data_row.resize(bucket_pool_num);
-        }
+        // std::vector<int64_t> pool_buf_offset(bucket_pool_num, 0);
+        // if (is_server)
+        // {
+        //     bucket_pool_data_row.resize(bucket_pool_num);
+        // }
+        bucket_pool_data_row.resize(bucket_pool_num);
         id_str.resize(bucket_pool_num);
         // add psi cli/srv rlt save  .Modified by wumingzi. 2022:09:20,Tuesday,14:46:19.
         id_index.resize(bucket_pool_num);
         //   .Modification over by wumingzi. 2022:09:20,Tuesday,14:47:16.
 
-        int64_t buf_offset = 0;
+        // int64_t buf_offset = 0;
         int original_index = 0;
         for (uint64_t i = 0; i < id_num; i++)
         {
             pool_index = id_index_pool[i];
-            buf_offset = pool_buf_offset[pool_index];
-            uint8_t *buf_dst = (uint8_t *)&bucket_pool_buf.at(pool_index)[buf_offset];
-            uint8_t *buf_src = (uint8_t *)&data_buf[i * hash_byte_length];
+            // buf_offset = pool_buf_offset[pool_index];
+            data_info->bucket_pool_buf[pool_index].emplace_back(std::move(data_info->id_hash_buf[i]));
+            // uint8_t *buf_dst = (uint8_t *)&bucket_pool_buf.[pool_index][buf_offset];
+            // uint8_t *buf_src = (uint8_t *)&data_buf[i * hash_byte_length];
 
-            // showHexValue((uint32_t *)buf_src, 4, 1);
-            copyBufWithIndex(buf_dst, buf_src, hash_byte_length, index_char_pos, index_char_len);
+            // // showHexValue((uint32_t *)buf_src, 4, 1);
+            // copyBufWithIndex(buf_dst, buf_src, hash_byte_length, index_char_pos, index_char_len);
             // showHexValue((uint32_t *)buf_dst, 4, 1);
 
             // move data row to pool
-            original_index = original_index_id->at(i);
-            id_str.at(pool_index).push_back(original_id_str->at(original_index));
+            // original_index = original_index_id->at(i);
+            original_index = i;
+            id_str.at(pool_index).emplace_back(std::move(original_id_str.at(original_index)));
             // add psi cli/srv rlt save  .Modified by wumingzi. 2022:09:20,Tuesday,14:46:59.
-            id_index.at(pool_index).push_back(original_index);
+            id_index.at(pool_index).push_back(original_index); // 保留id在原始数据中的index
             //   .Modification over by wumingzi. 2022:09:20,Tuesday,14:47:16.
 
-            if (is_server)
-            {
-                bucket_pool_data_row.at(pool_index).push_back(original_data_str->at(original_index));
-            }
+            // if (is_server)
+            // {
+            //     bucket_pool_data_row.at(pool_index).emplace_back(std::move(original_data_str.at(original_index)));
+            // }
+            bucket_pool_data_row.at(pool_index).emplace_back(std::move(original_data_str.at(original_index)));
             // move offset to next hash vaule
-            pool_buf_offset[pool_index] += hash_byte_length / sizeof(uint32_t);
+            // pool_buf_offset[pool_index] += hash_byte_length / sizeof(uint32_t);
         }
 
         return rlt;
@@ -2108,53 +2268,53 @@ namespace xscePirAlg
         if (0 == data_info->role)
             is_server = true;
         // first check buf pointer.
-        if (nullptr == data_info->original_index_id)
-        {
-            log << "data_info original_index_id is null" << std::endl;
-            error_num++;
-        }
+        // if (nullptr == data_info->original_index_id)
+        // {
+        //     log << "data_info original_index_id is null" << std::endl;
+        //     error_num++;
+        // }
 
-        if (nullptr == data_info->original_id_str)
-        {
-            log << "data_info original_id_str is null" << std::endl;
-            error_num++;
-        }
+        // if (nullptr == data_info->original_id_str)
+        // {
+        //     log << "data_info original_id_str is null" << std::endl;
+        //     error_num++;
+        // }
 
-        if (is_server) // server
-        {
-            if (nullptr == data_info->original_data_str)
-            {
-                log << "data_info(pir server) original_data_str is null" << std::endl;
-                error_num++;
-            }
-        }
+        // if (is_server) // server
+        // {
+        //     if (nullptr == data_info->original_data_str)
+        //     {
+        //         log << "data_info(pir server) original_data_str is null" << std::endl;
+        //         error_num++;
+        //     }
+        // }
 
         // check id_sum
         auto id_num = data_info->id_num;
-        int64_t len = data_info->original_index_id->size();
-        if (id_num != len)
-        {
-            log << "data_info  original_index_id size=" << len << " is not the same as id_num=" << id_num << std::endl;
-            error_num++;
-        }
-        len = data_info->original_id_str->size();
-        if (id_num != len)
-        {
-            log << "data_info  original_id_str size=" << len << " is not the same as id_num=" << id_num << std::endl;
-            error_num++;
-        }
+        // int64_t len = data_info->original_index_id->size();
+        // if (id_num != len)
+        // {
+        //     log << "data_info  original_index_id size=" << len << " is not the same as id_num=" << id_num << std::endl;
+        //     error_num++;
+        // }
+        // len = data_info->original_id_str.size();
+        // if (id_num != len)
+        // {
+        //     log << "data_info  original_id_str size=" << len << " is not the same as id_num=" << id_num << std::endl;
+        //     error_num++;
+        // }
 
-        if (is_server) // server
-        {
-            len = data_info->original_data_str->size();
-            if (id_num != len)
-            {
-                log << "data_info  original_data_str size=" << len << " is not the same as id_num=" << id_num << std::endl;
-                error_num++;
-            }
-        }
+        // if (is_server) // server
+        // {
+        //     len = data_info->original_data_str.size();
+        //     if (id_num != len)
+        //     {
+        //         log << "data_info  original_data_str size=" << len << " is not the same as id_num=" << id_num << std::endl;
+        //         error_num++;
+        //     }
+        // }
 
-        len = data_info->bucket_pool_index_id.size();
+        auto len = data_info->bucket_pool_index_id.size();
         if (id_num != len)
         {
             log << "data_info  bucket_pool_index_id size=" << len << " is not the same as id_num=" << id_num << std::endl;
@@ -2163,13 +2323,13 @@ namespace xscePirAlg
 
         // check vector size is whether the same as pool number
         int64_t pool_num = data_info->bucket_pool_num;
-        len = data_info->id_str.size();
+        // len = data_info->id_str.size();
 
-        if (pool_num != len)
-        {
-            log << "data_info id_str vec size=" << len << ", is not the same as pool num=" << pool_num << std::endl;
-            error_num++;
-        }
+        // if (pool_num != len)
+        // {
+        //     log << "data_info id_str vec size=" << len << ", is not the same as pool num=" << pool_num << std::endl;
+        //     error_num++;
+        // }
 
         len = data_info->bucket_pool_buf.size();
         if (pool_num != len)
@@ -2220,8 +2380,9 @@ namespace xscePirAlg
         if (nullptr == data_info)
             return;
 
-        std::vector<uint32_t *> &bucket_pool_buf = data_info->bucket_pool_buf;
-        int len = bucket_pool_buf.size();
+        // const std::vector<std::vector<util::Buf128>> &bucket_pool_buf = data_info->bucket_pool_buf;
+        // int len = bucket_pool_buf.size();
+        int len = data_info->bucket_pool_buf.size();
 
         for (int64_t i = 0; i < len; i++)
         {
@@ -2232,7 +2393,7 @@ namespace xscePirAlg
                 continue;
             }
 
-            uint32_t *buf = data_info->bucket_pool_buf.at(i);
+            // uint32_t *buf = data_info->bucket_pool_buf.at(i);
             auto max_show_cnt = pool_volume;
             if (show_cnt > 0 && show_cnt < (int)pool_volume)
             {
@@ -2267,9 +2428,16 @@ namespace xscePirAlg
     // str_rlt:  decode cipher data to string saved here.
     int64_t pirAesDecode(uint8_t *cipher_buf, uint8_t *key_buf,
                          int msg_aes_len,
-                         const std::vector<uint64_t> &cli_rlt,
-                         const std::vector<uint64_t> &srv_rlt,
-                         std::vector<std::string> *str_rlt)
+                         const std::vector<int64_t> &cli_rlt,
+                         const std::vector<int64_t> &srv_rlt,
+                         std::vector<std::string> *str_rlt) {
+        return pirAesDecode(cipher_buf, key_buf, msg_aes_len, cli_rlt, srv_rlt, str_rlt, nullptr);
+    }
+    int64_t pirAesDecode(uint8_t *cipher_buf, uint8_t *key_buf,
+                         int msg_aes_len,
+                         const std::vector<int64_t> &cli_rlt,
+                         const std::vector<int64_t> &srv_rlt,
+                         std::vector<std::string> *str_rlt, Logger* logger)
     {
         int64_t rlt = -1;
         int key_len = 2; // 128 bit aes. key_len = 2 means 2 uint64_t size.
@@ -2313,7 +2481,7 @@ namespace xscePirAlg
         uint64_t *dst = nullptr;
         uint64_t *src = (uint64_t *)cipher_buf;
         uint64_t *key = (uint64_t *)key_buf;
-        uint32_t max_show_cnt = 3;
+        uint32_t max_show_cnt = 4;
 
         dst = (uint64_t *)calloc(len * msg_aes_len, sizeof(uint64_t));
         if (nullptr == dst)
@@ -2329,6 +2497,8 @@ namespace xscePirAlg
             int64_t index_srv = srv_rlt.at(i);
             int64_t index_cli = cli_rlt.at(i);
             offset = index_srv * msg_aes_len;
+            uint64_t tmp = ((uint64_t*)(src + offset))[0];
+
             util::aesDecBUf(src + offset, dst + i * msg_aes_len, msg_aes_len, key + index_cli * key_len);
 
             // for debug
@@ -2336,18 +2506,18 @@ namespace xscePirAlg
             {
                 // for data security,disable printing keys  .Modified by wumingzi. 2023:04:06,Thursday,21:39:57.
 
-                LOG_DEBUG("index:" << index_cli);
+                LOG_INFO(logger, "index:" << index_cli << ", offset:" << offset << ", index_srv:" << index_srv << ", src:" << tmp);
                 block b(*(key + index_cli * key_len), *(key + index_cli * key_len + 1));
                 // LOG_DEBUG("key:" << b);
 
                 uint8_t *charBuf = (uint8_t *)(dst + i * msg_aes_len);
                 std::stringstream ss;
                 ss << i << ": dec rlt=";
-                // for (int64_t j = 0; j < msg_aes_len * 8; j++)
-                // {
-                //     ss << (unsigned char)charBuf[j];
-                // }
-                LOG_DEBUG(ss.str());
+                for (int64_t j = 0; j < msg_aes_len * 8; j++)
+                {
+                    ss << (unsigned char)charBuf[j];
+                }
+                LOG_INFO(logger, ss.str());
                 showBlk(2, 1);
                 rlt++;
             }
@@ -2370,7 +2540,7 @@ namespace xscePirAlg
     }
 
     // save pir result to vector  .Modified by wumingzi. 2022:06:18,Saturday,00:37:43.
-    int64_t savePirRlt2Vec(const std::vector<uint64_t> &psi_rlt, int64_t msg_aes_len, uint64_t *str_buf, std::vector<std::string> *rlt_str)
+    int64_t savePirRlt2Vec(const std::vector<int64_t> &psi_rlt, int64_t msg_aes_len, uint64_t *str_buf, std::vector<std::string> *rlt_str)
     {
         int64_t rlt = -1;
 
@@ -2884,10 +3054,95 @@ namespace xscePirAlg
         return rlt;
     }
 
+    // int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+    //                            std::vector<std::int64_t> &vec)
+    // {
+    //     int64_t rlt = -1;
+
+    //     if (nullptr == data_info)
+    //     {
+    //         LOG_ERROR("savePirRlt2StrVec input optAlg/data_info is null ");
+    //         return rlt;
+    //     }
+
+    //     std::vector<std::vector<std::int64_t>> &original_id_index = data_info->original_id_index;
+
+    //     std::vector<std::vector<std::int64_t>> *pir_cli_rlt = data_info->pir_cli_rlt;
+    //     if (nullptr == pir_cli_rlt)
+    //     {
+    //         LOG_ERROR("savePirRlt2StrVec input data_info pir_srv_rlt/pir_cli_rlt is null ");
+    //         return rlt;
+    //     }
+
+    //     // first save cli rlt to vec
+    //     int64_t pool_num = original_id_index.size();
+    //     int64_t len2 = pir_cli_rlt->size();
+    //     if (pool_num != len2)
+    //     {
+    //         LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len2=" << len2);
+    //         return rlt;
+    //     }
+
+    //     int64_t total_num = 0;
+    //     int64_t save_num = 0;
+    //     for (int64_t i = 0; i < pool_num; i++)
+    //     {
+    //         total_num += pir_cli_rlt->at(i).size();
+    //     }
+
+    //     // std::vector<std::tuple<uint64_t, std::string, std::string>> id_str_rlt;
+    //     std::vector<xsce_ose::PirOutput> pir_output;
+    //     pir_output.reserve(total_num);
+    //     // id_str_rlt.reserve(total_num);
+    //     vec.resize(total_num);
+    //     for (int64_t i = 0; i < pool_num; i++)
+    //     {
+    //         std::vector<std::int64_t> &cur_vec = pir_cli_rlt->at(i);
+    //         std::vector<std::int64_t> &cur_index = original_id_index.at(i);
+    //         int64_t len = cur_vec.size();
+    //         int64_t index_len = cur_index.size();
+    //         int64_t index = 0;
+    //         for (int64_t j = 0; j < len; j++)
+    //         {
+    //             index = cur_vec.at(j);
+    //             if (index >= 0 && index < index_len) {
+    //                 if (i < data_info->bucket_pool_data_row.size() && index < data_info->bucket_pool_data_row[i].size()) {
+    //                     // id_str_rlt.emplace_back(cur_index[index], (data_info->id_str)[i][index], (data_info->bucket_pool_data_row)[i][index]);
+    //                     pir_output.emplace_back(xsce_ose::PirOutput{cur_index[index], (data_info->id_str)[i][index], (data_info->bucket_pool_data_row)[i][index], ""});
+    //                 } else {
+    //                     // id_str_rlt.emplace_back(cur_index[index], (data_info->id_str)[i][index], "");
+    //                     pir_output.emplace_back(xsce_ose::PirOutput{cur_index[index], (data_info->id_str)[i][index], "", ""});
+    //                 }
+    //                 vec.at(save_num++) = cur_index.at(index);
+    //             }
+    //             else
+    //                 vec.at(save_num++) = -1;
+    //         }
+    //     }
+    //     // data_info->id_str_rlt_ = std::move(id_str_rlt);
+    //     data_info->pir_output_ = std::move(pir_output);
+
+    //     // std::sort(id_str_rlt.begin(), id_str_rlt.end(), [](std::tuple<uint64_t, std::string, std::string>& t1, std::tuple<uint64_t, std::string, std::string>& t2){
+    //     //     return std::get<0>(t1) < std::get<0>(t2);
+    //     // });
+
+
+    //     // then send srv rlt to server
+    //     rlt = save_num;
+    //     return rlt;
+    // }
+
     int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
-                               std::vector<std::int64_t> &vec)
+                               const std::vector<std::vector<std::int64_t>> &psi_rlt,
+                               std::vector<xsce_ose::PirOutput>* output)
+                            //    std::vector<std::int64_t> &vec)
     {
         int64_t rlt = -1;
+
+        if (output == nullptr) {
+            LOG_ERROR("output is nullptr");
+            return rlt;
+        }
 
         if (nullptr == data_info)
         {
@@ -2897,77 +3152,18 @@ namespace xscePirAlg
 
         std::vector<std::vector<std::int64_t>> &original_id_index = data_info->original_id_index;
 
-        std::vector<std::vector<std::int64_t>> *pir_cli_rlt = data_info->pir_cli_rlt;
-        if (nullptr == pir_cli_rlt)
-        {
-            LOG_ERROR("savePirRlt2StrVec input data_info pir_srv_rlt/pir_cli_rlt is null ");
-            return rlt;
-        }
+        // std::vector<std::vector<std::int64_t>> *pir_srv_rlt = &psi_rlt;
+
+        // if (nullptr == pir_srv_rlt)
+        // {
+        //     LOG_ERROR("savePirRlt2StrVec input data_info pir_srv_rlt/pir_cli_rlt is null ");
+        //     return rlt;
+        // }
 
         // first save cli rlt to vec
         int64_t pool_num = original_id_index.size();
-        int64_t len2 = pir_cli_rlt->size();
-        if (pool_num != len2)
-        {
-            LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len2=" << len2);
-            return rlt;
-        }
-
-        int64_t total_num = 0;
-        int64_t save_num = 0;
-        for (int64_t i = 0; i < pool_num; i++)
-        {
-            total_num += pir_cli_rlt->at(i).size();
-        }
-
-        vec.resize(total_num);
-        for (int64_t i = 0; i < pool_num; i++)
-        {
-            std::vector<std::int64_t> &cur_vec = pir_cli_rlt->at(i);
-            std::vector<std::int64_t> &cur_index = original_id_index.at(i);
-            int64_t len = cur_vec.size();
-            int64_t index_len = cur_index.size();
-            int64_t index = 0;
-            for (int64_t j = 0; j < len; j++)
-            {
-                index = cur_vec.at(j);
-                if (index >= 0 && index < index_len)
-                    vec.at(save_num++) = cur_index.at(index);
-                else
-                    vec.at(save_num++) = -1;
-            }
-        }
-
-        // then send srv rlt to server
-        rlt = save_num;
-        return rlt;
-    }
-
-    int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
-                               std::vector<std::vector<std::int64_t>> &psi_rlt,
-                               std::vector<std::int64_t> &vec)
-    {
-        int64_t rlt = -1;
-
-        if (nullptr == data_info)
-        {
-            LOG_ERROR("savePirRlt2StrVec input optAlg/data_info is null ");
-            return rlt;
-        }
-
-        std::vector<std::vector<std::int64_t>> &original_id_index = data_info->original_id_index;
-
-        std::vector<std::vector<std::int64_t>> *pir_srv_rlt = &psi_rlt;
-
-        if (nullptr == pir_srv_rlt)
-        {
-            LOG_ERROR("savePirRlt2StrVec input data_info pir_srv_rlt/pir_cli_rlt is null ");
-            return rlt;
-        }
-
-        // first save cli rlt to vec
-        int64_t pool_num = original_id_index.size();
-        int64_t len1 = pir_srv_rlt->size();
+        // int64_t len1 = pir_srv_rlt->size();
+        int64_t len1 = psi_rlt.size();
         if (pool_num != len1)
         {
             LOG_ERROR("savePirRlt2StrVec input data_info pool_num error=" << pool_num << ",len1=" << len1);
@@ -2978,13 +3174,18 @@ namespace xscePirAlg
         int64_t save_num = 0;
         for (int64_t i = 0; i < pool_num; i++)
         {
-            total_num += pir_srv_rlt->at(i).size();
+        //     total_num += pir_srv_rlt->at(i).size();
+            total_num += psi_rlt[i].size();
         }
 
-        vec.resize(total_num);
+        // std::vector<std::tuple<uint64_t, std::string, std::string>> id_str_rlt;
+        // id_str_rlt.reserve(total_num);
+        output->reserve(total_num);
+        // vec.resize(total_num);
         for (int64_t i = 0; i < pool_num; i++)
         {
-            std::vector<std::int64_t> &cur_vec = pir_srv_rlt->at(i);
+            // std::vector<std::int64_t> &cur_vec = pir_srv_rlt->at(i);
+            auto& cur_vec = psi_rlt[i];
             std::vector<std::int64_t> &cur_index = original_id_index.at(i);
             int64_t len = cur_vec.size();
             int64_t index_len = cur_index.size();
@@ -2992,12 +3193,28 @@ namespace xscePirAlg
             for (int64_t j = 0; j < len; j++)
             {
                 index = cur_vec.at(j);
-                if (index >= 0 && index < index_len)
-                    vec.at(save_num++) = cur_index.at(index);
-                else
-                    vec.at(save_num++) = -1;
+                if (index >= 0 && index < index_len){
+                    std::string data = "";
+                    std::string rmt_data = "";
+                    if (i < data_info->bucket_pool_data_row.size() && index < data_info->bucket_pool_data_row[i].size()) {
+                        data = (data_info->bucket_pool_data_row)[i][index];
+                    }
+                    if (i < data_info->pir_rlt->size() && index < data_info->pir_rlt->at(i).size()) {
+                        rmt_data = data_info->pir_rlt->at(i)[index];
+                    }
+                    output->emplace_back(xsce_ose::PirOutput{cur_index[index], (data_info->id_str)[i][index], data, rmt_data});
+                    // vec.at(save_num++) = cur_index.at(index);
+                }
+                // else
+                    // vec.at(save_num++) = -1;
             }
         }
+        // data_info->id_str_rlt_ = std::move(id_str_rlt);
+        // data_info->pir_output_ = std::move(pir_output);
+
+        // std::sort(id_str_rlt.begin(), id_str_rlt.end(), [](std::tuple<uint64_t, std::string, std::string>& t1, std::tuple<uint64_t, std::string,std::string>& t2){
+        //     return std::get<0>(t1) < std::get<0>(t2);
+        // });
 
         // then send srv rlt to server
         rlt = save_num;

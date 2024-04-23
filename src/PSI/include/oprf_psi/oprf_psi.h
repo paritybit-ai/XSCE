@@ -35,96 +35,178 @@
 
 namespace oprf_psi
 {
-    using OptAlg = xsce_ose::OptAlg;
-    class OprfPsi
+inline int64_t GetCurMemoryUse() {
+        #define VMRSS_LINE 22
+        auto pid = getpid();
+        char file_name[64] = { 0 };
+        FILE* fd;
+        char line_buff[512] = { 0 };
+        sprintf(file_name, "/proc/%d/status", pid);
+
+        fd = fopen(file_name, "r");
+        if (nullptr == fd)
+            return 0;
+
+        char name[64];
+        int vmrss = 0;
+        for (int i = 0; i < VMRSS_LINE - 1; i++)
+            fgets(line_buff, sizeof(line_buff), fd);
+
+        fgets(line_buff, sizeof(line_buff), fd);
+        sscanf(line_buff, "%s %d", name, &vmrss);
+        fclose(fd);
+
+        // cnvert VmRSS from KB to MB
+        return vmrss / 1024.0;
+    }
+
+namespace offline {
+extern bool USE_OFFLINE_CHANNEL;
+extern std::vector<uint8_t> recv_data;
+extern uint64_t cur_read_recv_data;
+extern std::vector<uint8_t> send_data;
+extern uint64_t cur_write_send_data;
+
+inline void SetOfflineChannelFlag(bool offline) {
+    USE_OFFLINE_CHANNEL = offline;
+}
+inline std::vector<uint8_t> GetSendData() {
+    auto tmp = std::move(send_data); // 返回并清空数据
+    send_data.clear();
+    cur_write_send_data = 0;
+    return tmp;
+}
+inline void SetRecvData(std::vector<uint8_t>&& data) {
+    recv_data.clear();
+    recv_data = std::move(data);
+    cur_read_recv_data = 0;
+}
+inline void SetRecvData(const std::vector<uint8_t>& data) {
+    auto tmp = data;
+    SetRecvData(std::move(tmp));
+}
+} // namespace offline
+
+using namespace xsce_ose;
+using OptAlg = xsce_ose::OptAlg;
+
+inline void SaveOprfValues(char* hash_inputs, size_t size, std::vector<xsce_ose::block>* oprf_values) {
+    if (oprf_values != nullptr) {
+        uint64_t hash_out[2];
+        util::getMd5((unsigned char*)hash_inputs, size, (unsigned char*)hash_out);
+        xsce_ose::block tmp(hash_out[0], hash_out[1]);
+        // LOG_DEBUG("oprf_value:" << tmp);
+        oprf_values->emplace_back(std::move(tmp));
+    }
+}
+class OprfPsi
+{
+public:
+    OprfPsi(const std::string &ip, uint32_t port) : ip_(ip), port_(port)
     {
-    public:
-        OprfPsi(const std::string &ip, uint32_t port) : ip_(ip), port_(port)
-        {
-            height = 1 << (logHeight);
+        height = 1 << (logHeight);
+    }
+    virtual ~OprfPsi() {}
+    virtual int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg) = 0;
+    virtual int64_t OprfPsiAlg(std::vector<util::Buf128>&& hashBuf, uint64_t rmtNeles, OptAlg* optAlg) = 0;
+    void SetOprfValuesFlag(bool flag) {save_ov_ = flag;}
+    std::vector<xsce_ose::block> GetOprfValues() {return oprf_values_;}
+    // void SaveOprfValues(char* hash_inputs, size_t size) {
+    //     if (save_ov_) {
+    //         uint64_t hash_out[2];
+    //         util::getMd5((unsigned char*)hash_inputs, size, (unsigned char*)hash_out);
+    //         xsce_ose::block tmp(hash_out[0], hash_out[1]);
+    //         // LOG_DEBUG("oprf_value:" << tmp);
+    //         oprf_values_.emplace_back(std::move(tmp));
+    //     }
+    // }
+    void SetHashLen(uint64_t hash_len) {
+        if (hash_len > 0) {
+            hashLen = hash_len;
         }
-        virtual ~OprfPsi() {}
-        virtual int64_t OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmtNeles, OptAlg* optAlg) = 0;
-
-        void SetOprfValuesFlag(bool flag) {save_ov_ = flag;}
-        std::vector<xsce_ose::block> GetOprfValues() {return oprf_values_;}
-        void SaveOprfValues(char* hash_inputs, size_t size) {
-            if (save_ov_) {
-                uint64_t hash_out[2];
-                util::getMd5((unsigned char*)hash_inputs, size, (unsigned char*)hash_out);
-                xsce_ose::block tmp(hash_out[0], hash_out[1]);
-                // LOG_DEBUG("oprf_value:" << tmp);
-                oprf_values_.emplace_back(std::move(tmp));
-            }
+    }
+    void SetWidth(uint32_t w) {
+        if (w > 0) {
+            width = w;
         }
-        void SetHashLen(uint64_t hash_len) {
-            if (hash_len > 0) {
-                hashLen = hash_len;
-            }
+    }
+    void SetLogHeight(uint32_t log_height) {
+        if (log_height > 0) {
+            logHeight = log_height;
         }
-        void SetWidth(uint32_t w) {
-            if (w > 0) {
-                width = w;
-            }
+    }
+    void SetHeight(uint32_t h) {
+        if (h > 0) {
+            height = h;
         }
-        void SetLogHeight(uint32_t log_height) {
-            if (log_height > 0) {
-                logHeight = log_height;
-            }
+    }
+    void SetHashLengthInBytes(uint32_t hash_length_in_bytes) {
+        if (hash_length_in_bytes > 0) {
+            hashLengthInBytes = hash_length_in_bytes;
         }
-        void SetHeight(uint32_t h) {
-            if (h > 0) {
-                height = h;
-            }
+    }
+    void SetHash1LengthInBytes(uint64_t hash1_length_in_bytes) {
+        if (hash1_length_in_bytes > 0) {
+            hash1LengthInBytes = hash1_length_in_bytes;
         }
-        void SetHashLengthInBytes(uint32_t hash_length_in_bytes) {
-            if (hash_length_in_bytes > 0) {
-                hashLengthInBytes = hash_length_in_bytes;
-            }
+    }
+    void SetBucket(uint32_t bucket) {
+        if (bucket > 0) {
+            bucket1 = 1 << bucket;
+            bucket2 = 1 << bucket;
+            LOG_INFO("oprf psi alg client mode. set bucket1 & bucket2 to " << bucket1);
         }
-        void SetHash1LengthInBytes(uint64_t hash1_length_in_bytes) {
-            if (hash1_length_in_bytes > 0) {
-                hash1LengthInBytes = hash1_length_in_bytes;
-            }
+    }
+    void SetCommonSeed(uint64_t seed, uint64_t seed1) {
+        if (seed > 0 && seed1 > 0) {
+            commonSeed = seed;
+            commonSeed1 = seed1;
         }
-        void SetBucket(uint32_t bucket) {
-            if (bucket > 0) {
-                bucket1 = 1 << bucket;
-                bucket2 = 1 << bucket;
-                LOG_INFO("oprf psi alg client mode. set bucket1 & bucket2 to " << bucket1);
-            }
+    }
+    void SetInertalSeed(uint64_t seed, uint64_t seed1) {
+        if (seed > 0 && seed1 > 0) {
+            inertalSeed = seed;
+            inertalSeed1 = seed1;
         }
-        void SetCommonSeed(uint64_t seed, uint64_t seed1) {
-            if (seed > 0 && seed1 > 0) {
-                commonSeed = seed;
-                commonSeed1 = seed1;
-            }
-        }
-        void SetInertalSeed(uint64_t seed, uint64_t seed1) {
-            if (seed > 0 && seed1 > 0) {
-                inertalSeed = seed;
-                inertalSeed1 = seed1;
-            }
-        }
-
-    protected:
-        uint64_t hashLen{128};
-        uint32_t width{632};
-        uint32_t logHeight{20};
-        uint32_t height;
-        uint32_t hashLengthInBytes{10};
-        uint64_t hash1LengthInBytes{32};
-        uint32_t bucket1{256};
-        uint32_t bucket2{256};
-        uint64_t commonSeed{0xAA55AA55AA55AA55};
-        uint64_t commonSeed1{0xAA55AA55AA55AA55};
-        uint64_t inertalSeed{0x1122334455667788};
-        uint64_t inertalSeed1{0x1122334455667788};
-
-        std::string ip_;
-        uint32_t port_;
-
-        bool save_ov_{false};
-        std::vector<xsce_ose::block> oprf_values_;
-    };
-} // namespace oprf_psi
+    }
+    void SetIds(const std::vector<std::string> &ids) {
+        auto tmp = ids;
+        SetIds(std::move(tmp));
+    }
+    void SetIds(std::vector<std::string> &&ids) {
+        ids_ = std::move(ids);
+    }
+    void PrintArgs() {
+        std::cout << "hashLen: " << hashLen << std::endl;
+        std::cout << "width: " << width << std::endl;
+        std::cout << "logHeight: " << logHeight << std::endl;
+        std::cout << "height: " << height << std::endl;
+        std::cout << "hashLengthInBytes: " << hashLengthInBytes << std::endl;
+        std::cout << "hash1LengthInBytes: " << hash1LengthInBytes << std::endl;
+        std::cout << "bucket1: " << bucket1 << std::endl;
+        std::cout << "bucket2: " << bucket2 << std::endl;
+        std::cout << "commonSeed: " << commonSeed << std::endl;
+        std::cout << "commonSeed1: " << commonSeed1 << std::endl;
+        std::cout << "inertalSeed: " << inertalSeed << std::endl;
+        std::cout << "inertalSeed1: " << inertalSeed1 << std::endl;
+    }
+protected:
+    uint64_t hashLen{128};
+    uint32_t width{632};
+    uint32_t logHeight{20};
+    uint32_t height;
+    uint32_t hashLengthInBytes{10};
+    uint64_t hash1LengthInBytes{32};
+    uint32_t bucket1{256};
+    uint32_t bucket2{256};
+    uint64_t commonSeed{0xAA55AA55AA55AA55};
+    uint64_t commonSeed1{0xAA55AA55AA55AA55};
+    uint64_t inertalSeed{0x1122334455667788};
+    uint64_t inertalSeed1{0x1122334455667788};
+    std::vector<std::string> ids_;
+    std::string ip_;
+    uint32_t port_;
+    bool save_ov_{false};
+    std::vector<xsce_ose::block> oprf_values_;
+};
+} // namespace oprf_psi_offline

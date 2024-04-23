@@ -112,7 +112,8 @@ namespace xscePirAlg
         //for both side
         int role = 0;
         int pool_index = 0;                             //0 means server, 1 means client.
-        uint8_t *id_hash_buf = nullptr;                 //id hash number buf.
+        // uint8_t *id_hash_buf = nullptr;                 //id hash number buf.
+        std::vector<util::Buf128> id_hash_buf;
         std::vector<uint64_t> *id_hash_index = nullptr; //holds the id_hash index after sorting
         int32_t hash_byte_len = 16;                     //the byte length of each hash vaule.
         int64_t id_num = 0;                             //the number of id string.
@@ -149,7 +150,8 @@ namespace xscePirAlg
         std::vector<std::vector<std::int64_t> > original_id_index; //hold the original id index for both srv&cli
 
         //for both srv&cli
-        uint32_t *id_hash_buf = nullptr; //id hash number buf.
+        // uint32_t *id_hash_buf = nullptr; //id hash number buf.
+        std::vector<util::Buf128> id_hash_buf;
         int64_t id_num = 0;              //the number of id string.
         int64_t id_hash_byte_len = 16;   //the byte length of id hash value,usually 16 .
         int index_char_pos = 0;          //select the byte of hash value to split buckets.
@@ -157,10 +159,13 @@ namespace xscePirAlg
         std::vector<int64_t> *original_index_id;   //the index id of input id_hash_buf
         std::vector<int64_t> bucket_pool_index_id; //the pool index of each id str
 
-        std::vector<std::string> *original_id_str = nullptr;
-        std::vector<std::string> *original_data_str = nullptr;
+        // std::vector<std::string> *original_id_str = nullptr;
+        // std::vector<std::string> *original_data_str = nullptr;
+        std::vector<std::string> original_id_str;
+        std::vector<std::string> original_data_str;
 
-        std::vector<uint32_t *> bucket_pool_buf; //the bucket pool which contains multiple bucket;
+        // std::vector<uint32_t *> bucket_pool_buf; //the bucket pool which contains multiple bucket;
+        std::vector<std::vector<util::Buf128>> bucket_pool_buf;
         std::vector<int64_t> bucket_pool_vol;    //the volume of each bucket pool;
 
         //for pir srver only.
@@ -171,6 +176,8 @@ namespace xscePirAlg
         std::vector<std::vector<std::string> > *pir_rlt;      //hold pir rlt of client party
         std::vector<std::vector<std::int64_t> > *pir_cli_rlt; //hold psi rlt of client party
         std::vector<std::vector<std::int64_t> > *pir_srv_rlt; //hold psi rlt of server party
+        // std::vector<std::tuple<uint64_t, std::string, std::string>> id_str_rlt_; // 存储最终字符串结果，以及在原始id中的index
+        // std::vector<xsce_ose::PirOutput> pir_output_;
 
         //for idle data.
         uint8_t idle_data_row = 0;
@@ -243,7 +250,13 @@ namespace xscePirAlg
     int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &id_vec,
                                          std::vector<std::string> &data_vec,
                                          std::vector<int64_t> &psi_cli_rlt,
-                                         std::vector<int64_t> &psi_srv_rlt);
+                                         std::vector<int64_t> &psi_srv_rlt); // 旧接口
+    int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &&id_vec,
+                                         std::vector<std::string> &&data_vec,
+                                         std::vector<xsce_ose::PirOutput>* output = nullptr);
+    int64_t pirStr2PartyAlgTerminalBatch(OptAlg *optAlg, std::vector<std::string> &id_vec,
+                                         std::vector<std::string> &data_vec,
+                                         std::vector<xsce_ose::PirOutput>* output = nullptr);
 
     int64_t pir2PartyAlgTerminalPool(OptAlg *optAlg, PirDataInfo *data_info, int pool_num);
     int64_t pir2PartyAlgTerminalBasic(OptAlg *optAlg, PirAlgInfo *alg_info, uint32_t pool_num);
@@ -258,14 +271,14 @@ namespace xscePirAlg
 
     int64_t pirAesDecode(uint8_t *cipher_buf, uint8_t *key_buf,
                          int msg_aes_len,
-                         const std::vector<uint64_t> &cli_rlt,
-                         const std::vector<uint64_t> &srv_rlt, std::vector<std::string> *str_rlt);
-    int64_t savePirRlt2Vec(const std::vector<uint64_t> &psi_rlt, int64_t msg_aes_len, uint64_t *str_buf, std::vector<std::string> *rlt_str);
+                         const std::vector<int64_t> &cli_rlt,
+                         const std::vector<int64_t> &srv_rlt, std::vector<std::string> *str_rlt);
+    int64_t savePirRlt2Vec(const std::vector<int64_t> &psi_rlt, int64_t msg_aes_len, uint64_t *str_buf, std::vector<std::string> *rlt_str);
 
     bool checkLocalRmtNumNonZero(OptAlg *optAlg, int64_t num, int pool);
 
-    int64_t splitIdBufBucket(PirDataInfo *data_info);
-    int64_t splitIdBufBucketByPoolNum(PirDataInfo *data_info);
+    int64_t splitIdBufBucket(PirDataInfo *data_info, Logger *logger=nullptr);
+    int64_t splitIdBufBucketByPoolNum(PirDataInfo *data_info, Logger *logger=nullptr);
     int64_t splitIdBufBucketByPoolSize(PirDataInfo *data_info);
 
     bool checkPirDataInfo(PirDataInfo *data_info, std::string &msg);
@@ -287,11 +300,14 @@ namespace xscePirAlg
     int64_t getMaxStrLen(std::vector<std::string> &str);
     int64_t copyUint642Int64Vec(std::vector<std::uint64_t> *src, std::vector<std::int64_t> *dst);
 
+    // int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+    //                            std::vector<std::int64_t> &vec);
+    // int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
+    //                            std::vector<std::vector<std::int64_t> > &psi_rlt,
+    //                            std::vector<std::int64_t> &vec);
     int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
-                               std::vector<std::int64_t> &vec);
-    int64_t savePsiDataRlt2Vec(PirDataInfo *data_info,
-                               std::vector<std::vector<std::int64_t> > &psi_rlt,
-                               std::vector<std::int64_t> &vec);
+                               const std::vector<std::vector<std::int64_t> > &psi_rlt,
+                               std::vector<xsce_ose::PirOutput>* output);
 
     int64_t sendInt64Mtx(OptAlg *optAlg,
                          std::vector<std::vector<std::int64_t> > &vec);

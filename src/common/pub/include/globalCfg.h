@@ -417,4 +417,11 @@ typedef struct _LogSaveOpt
     int64_t logLevel = 0;
 } LogSaveOpt;
 // modfication over.  Modified by .pan on 2021/5/12 3:24 pm.
+
+struct PirOutput {
+    int64_t index;
+    std::string id;
+    std::string data;
+    std::string rmt_data;
+};
 } // namespace xsce_ose

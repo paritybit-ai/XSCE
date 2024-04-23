@@ -34,7 +34,17 @@ namespace xscePirAlg {
 extern int64_t pir2PartyAlgTerminalBatch(xsce_ose::OptAlg *optAlg);
 extern int64_t pirStr2PartyAlgTerminalBatch(xsce_ose::OptAlg *optAlg, std::vector<std::string> &id_vec,
                                          std::vector<std::string> &data_vec,
-                                         std::vector<std::int64_t> &psi_cli_rlt,
-                                         std::vector<std::int64_t> &psi_srv_rlt);
+                                        //  std::vector<std::int64_t> &psi_cli_rlt,
+                                        //  std::vector<std::int64_t> &psi_srv_rlt,
+                                         std::vector<xsce_ose::PirOutput>* output);
+                                        //  std::vector<std::tuple<uint64_t, std::string, std::string>>* id_str_rlt,
+                                        //  std::vector<std::string>* cli_pir_rlt);
+extern int64_t pirStr2PartyAlgTerminalBatch(xsce_ose::OptAlg *optAlg, std::vector<std::string> &&id_vec,
+                                         std::vector<std::string> &&data_vec,
+                                        //  std::vector<int64_t> &psi_cli_rlt,
+                                        //  std::vector<int64_t> &psi_srv_rlt,
+                                         std::vector<xsce_ose::PirOutput>* output);
+                                        //  std::vector<std::tuple<uint64_t, std::string, std::string>>* id_str_rlt,
+                                        //  std::vector<std::string>* cli_pir_rlt);
 
 } // namespace xscePirAlg

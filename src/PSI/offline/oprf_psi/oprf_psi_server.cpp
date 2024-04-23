@@ -361,7 +361,7 @@ int64_t OprfPsiServer::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmt
     uint8_t *dataBuf = hashBuf;
     std::vector<block> sender_set;
 
-    if (ids_.size() == 0) {
+    if (ids_.size() == 0) { // 外部已经将id hash过了，直接生成sender_set,
         if (hashLen < 128)
         {
             LOG_ERROR("Hash len is invalid, hash len:" << hashLen);
@@ -394,6 +394,7 @@ int64_t OprfPsiServer::OprfPsiAlg(uint8_t *hashBuf, uint64_t neles, uint64_t rmt
             }
         }
     } else {
+        // 先hash，在生成sender_set;
         sender_set = PreDealPSIIds(ids_);
         sender_size = sender_set.size();
         receiver_size = GetRecevierSize(sender_size, ip_, port_);

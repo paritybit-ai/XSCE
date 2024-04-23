@@ -1669,6 +1669,49 @@ namespace util
         }
 
         return rlt;
+    } 
+
+    int64_t convertStrVec2Md5Index(const std::vector<std::string> &strVec, std::vector<Buf128>* buf)
+    {
+        int64_t rlt = 0;
+        // freeUInt32Vec(buf);
+        buf->clear();
+        size_t num = strVec.size();
+        // if (num != indexVec.size())
+        // {
+        //     LOG_ERROR("convertStrVec2Md5 input dat num is invalid at=" << num << ",index vec size=" << indexVec.size());
+        //     return ERROR_RLT;
+        // }
+
+        uint32_t dwLen = 16 / sizeof(uint32_t);
+        unsigned char *outBuf = nullptr;
+        uint32_t *base = nullptr;
+        size_t index = 0;
+
+        // buf = allocateUInt32Vec(num * 4);
+        buf->reserve(num);
+        PTR_ERR_RTN(buf);
+
+        // for (size_t i = 0; i < num; i++)
+        for (auto& str : strVec)
+        {
+            // base = buf + (i)*dwLen;
+            // index = indexVec.at(i);
+            // if (index >= num)
+            // {
+            //     LOG_INFO("index is error=" << index << ",vec size=" << num);
+            //     continue;
+            // }
+            // outBuf = (unsigned char *)base;
+            Buf128 tmp_buf;
+            outBuf = (unsigned char *)&tmp_buf;
+            // std::string str = strVec.at(index);
+            getMd5((unsigned char *)str.c_str(), str.length(), outBuf);
+            buf->emplace_back(tmp_buf);
+            rlt++;
+        }
+
+        return rlt;
     }
 
     // time tool  .Modified by wumingzi/wumingzi. 2022:05:17,Tuesday,15:12:54.
